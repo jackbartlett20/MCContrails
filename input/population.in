@@ -1,0 +1,3 @@
+1010                          // max_sps
+1000                          // num_r_choices
+1e-3                          // f_dry_tol
