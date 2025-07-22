@@ -12,7 +12,6 @@
 
 Population::Population() {
     read_population();
-    num_sps = 0;
 
     // Read species
     std::vector<Species> species_vec = read_species();
@@ -20,19 +19,21 @@ Population::Population() {
     std::cout << "Number of species read: " << num_species << std::endl;
 
     // Calculate total particle density
-    double n_tot = 0;
+    n_tot = 0;
     for (const Species& species : species_vec) {
         n_tot += species.n;
     }
     double n_per_sp = n_tot/max_sps;
 
     // Assign superparticles
+    num_sps = 0;
+    sp_ID_count = 0;
     int species_ID = 0;
     for (const Species& species : species_vec) {
-        int sps_for_species = std::round(species.n/n_per_sp);
+        int num_sps_for_species = std::round(species.n/n_per_sp);
         species_ID++;
-        std::cout << "Number of superparticles created from species " << species_ID << ": " << sps_for_species << std::endl;
-        if (sps_for_species == 0) {
+        std::cout << "Number of superparticles created from species " << species_ID << ": " << num_sps_for_species << std::endl;
+        if (num_sps_for_species == 0) {
             continue;
         }
         double logr_mean = std::log(species.r_mean);
@@ -40,9 +41,9 @@ Population::Population() {
         double logr_max = logr_mean + 4*species.SD;
         std::vector<double> logr_vec = linspace(logr_min, logr_max, num_r_choices);
         std::vector<double> weights = normal_dist(logr_vec, logr_mean, species.SD);
-        std::vector<double> vs = choose_vs(sps_for_species, logr_vec, weights);
-        for (int i = 0; i < sps_for_species; i++) {
-            droplet_sps.push_back(Superparticle(num_sps, n_per_sp, vs.at(i), species.f_dry, species.kappa, 0, false));
+        std::vector<double> vs = choose_vs(num_sps_for_species, logr_vec, weights);
+        for (int i = 0; i < num_sps_for_species; i++) {
+            droplet_sps.push_back(Superparticle(sp_ID_count++, n_per_sp, vs.at(i), species.f_dry, species.kappa, 0, false));
             num_sps++;
         }
     }
@@ -124,13 +125,14 @@ std::vector<Species> Population::read_species() {
 }
 
 // Randomly chooses a set of volumes for superparticles according to weights
-std::vector<double> Population::choose_vs(int sps_for_species, std::vector<double> logr_range, std::vector<double> weights) {
-    std::vector<double> vs(sps_for_species);
-    std::random_device rd;
-    std::mt19937 gen(rd()); // Seed Mersenne Twister engine
+std::vector<double> Population::choose_vs(int num_sps_for_species, std::vector<double> logr_range, std::vector<double> weights) {
+    std::vector<double> vs(num_sps_for_species);
+    //std::random_device rd;
+    //std::mt19937 gen(rd()); // Seed Mersenne Twister engine
     std::discrete_distribution<> distribution(weights.begin(), weights.end());
-    for (int i = 0; i < sps_for_species; i++) {
-        int random_index = distribution(gen);
+    for (int i = 0; i < num_sps_for_species; i++) {
+        //int random_index = distribution(gen);
+        int random_index = distribution(global_rng());
         double r = std::exp(logr_range.at(random_index));
         vs.at(i) = 4*PI/3*std::pow(r, 3);
     }

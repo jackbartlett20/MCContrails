@@ -1,4 +1,4 @@
-**MCContrails** is a stochastic 0D population balance model for contrails. It represents the particle population with a set of *superparticles* and solves droplet growth, freezing, and ice crystal growth. It will hopefully also do coagulation when I get round to it.
+**MCContrails** is a stochastic 0D population balance model for contrails. It represents the particle population with a set of *superparticles* and solves droplet growth, freezing, ice crystal growth, and coagulation.
 
 
 # Compiling

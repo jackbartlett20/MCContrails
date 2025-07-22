@@ -68,10 +68,14 @@ void Environment::set_env(const double current_time) {
     // Density of air (kg m-3)
     air_density = P_ambient * AIR_MOLAR_MASS / (IDEAL_GAS_CONSTANT * T);
 
+    // Viscosity of air (N s m-2) - Sutherland equation
+    air_viscosity = 1.716e-5 * std::pow(T/273, 1.5) * 384/(T+111);
+
     // Mean free path of air (m) - assumes effective collision diameter 0.37 nm
     mfp_air = (BOLTZMANN_CONSTANT*T)/(std::sqrt(2)*PI*std::pow(0.37e-9, 2)*P_ambient);
 
-    // H2O density
+    // Water density (kg m-3)
+    water_density = 1000;
 
     // Water surface tension (N m-1) - IAPWS
     sigma_water = 235.8e-3 * std::pow(1-T/647.096, 1.256) * (1 - 0.625*(1-T/647.096));

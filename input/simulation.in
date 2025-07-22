@@ -1,6 +1,8 @@
-1e0                           // int_time
-1e-7                          // dt
-1000                          // num_writes
+1e-3                           // Integration time (s) -> int_time
+1e-7                          // Time step (s) -> dt
+0                          // Number of outputs, equally spaced during integration time -> num_writes
 1e-9                          // Smallest radius in output spectrum (m) -> r_output_min
 1e-6                          // Largest radius in output spectrum (m) -> r_output_max
 200                           // Number of radius intervals in output spectrum -> num_r_intervals_output
+1                             // Do aggregation? (on/off) -> do_aggregation
+0                             // Random number generator seed (use 0 for random)

@@ -1,5 +1,8 @@
 #include <vector>
 #include <cmath>
+#include <random>
+#include <chrono>
+#include "general.h"
 #include "constants.h"
 
 // Returns a vector of n linearly spaced values inclusive of start and stop
@@ -32,4 +35,11 @@ std::vector<double> normal_dist(std::vector<double> x, double x_mean, double sig
         normal.at(i) = 1/(std::sqrt(2*PI)*sigma) * std::exp(-std::pow(x.at(i)-x_mean, 2)/(2*std::pow(sigma, 2)));
     }
     return normal;
+}
+
+// Returns a reference to the global random number generator; only initialised when this function is first called
+std::mt19937_64& global_rng() {
+    // rng_seed is set in Simulation::set_rng()
+    static std::mt19937_64 rng(rng_seed);
+    return rng;
 }

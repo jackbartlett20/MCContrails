@@ -20,7 +20,9 @@ public:
     double S_l;
     double S_i;
     double air_density;
+    double air_viscosity;
     double mfp_air;
+    double water_density;
     double sigma_water;
     double vapour_thermal_speed;
     double diffusivity;
