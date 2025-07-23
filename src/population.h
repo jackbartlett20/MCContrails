@@ -41,7 +41,7 @@ public:
     std::vector<Superparticle> droplet_sps;
     std::vector<Superparticle> crystal_sps;
 
-    Population();
+    void assign();
 
 private:
     void read_population();

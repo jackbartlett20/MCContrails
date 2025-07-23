@@ -36,8 +36,6 @@ private:
 
     void read_simulation();
 
-    void set_rng();
-
     void growth();
 
     double growth_rate_liquid(const double v, const double f_dry, const double kappa);

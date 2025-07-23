@@ -10,7 +10,7 @@
 #include "general.h"
 #include "constants.h"
 
-Population::Population() {
+void Population::assign() {
     read_population();
 
     // Read species

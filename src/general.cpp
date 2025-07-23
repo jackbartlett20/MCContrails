@@ -1,3 +1,4 @@
+#include <iostream>
 #include <vector>
 #include <cmath>
 #include <random>
@@ -37,9 +38,21 @@ std::vector<double> normal_dist(std::vector<double> x, double x_mean, double sig
     return normal;
 }
 
+unsigned long long rng_seed;
+
+// Sets the seed for the global random number generator
+void set_rng(unsigned long long rng_seed_read) {
+    if (rng_seed_read == 0) {
+        rng_seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    }
+    else {
+        rng_seed = rng_seed_read;
+    }
+    std::cout << "Using random seed: " << rng_seed << std::endl;
+}
+
 // Returns a reference to the global random number generator; only initialised when this function is first called
 std::mt19937_64& global_rng() {
-    // rng_seed is set in Simulation::set_rng()
     static std::mt19937_64 rng(rng_seed);
     return rng;
 }
