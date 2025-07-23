@@ -4,7 +4,6 @@
 #include <limits>
 #include <vector>
 #include <cmath>
-#include <chrono>
 #include "simulation.h"
 #include "population.h"
 #include "environment.h"
@@ -24,6 +23,8 @@ void Simulation::run() {
         write_interval = int_time;
     }
     next_write_time = write_interval;
+    coag_interval = num_dt_for_coag*dt;
+    next_coag_time = coag_interval;
     prepare_output();
     
     pop.assign(); // Called after rng set
@@ -37,10 +38,13 @@ void Simulation::run() {
         // Update volume based on change in water density
         growth();
         if (do_coagulation == 1) {
-            coagulation();
+            if (current_time >= next_coag_time) {
+                coagulation();
+                next_coag_time += coag_interval;
+            }
         }
         freezing();
-        if (current_time>next_write_time) {
+        if (current_time >= next_write_time) {
             output();
             next_write_time += write_interval;
         }
@@ -67,6 +71,8 @@ void Simulation::read_simulation() {
     file >> num_r_intervals_output;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> do_coagulation;
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    file >> num_dt_for_coag;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> rng_seed_read;
     file.close();
@@ -188,9 +194,9 @@ void Simulation::coagulation() {
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
 
     // Constant part of probability expression
-    // Assumes all superparticles have equal n
-    // If this is not the case, do P_ij = beta_ij * n_i * n_j * pop.num_sps/pop.n_tot
-    const double const_fac = pop.n_tot*dt/pop.num_sps;
+    // Assumes each superparticle has same number density
+    // Which it should for 1-to-1 coagulation
+    const double const_fac = pop.n_tot/pop.num_sps * num_dt_for_coag*dt;
 
     // Droplets with droplets
     for (int i = 0; i < num_droplet_sps-1; i++) {
@@ -207,20 +213,19 @@ void Simulation::coagulation() {
             const Superparticle& sp_j = pop.droplet_sps.at(j);
             double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
             double random_number = distribution(global_rng());
-            // P_ij = beta_ij*const_fac
-            if (random_number < beta_ij*const_fac) {
+            // P_ij = beta_ij * const_fac;
+            if (random_number < beta_ij * const_fac) {
                 // Coagulation occurs
                 std::cout << "Coagulation between droplet " << i << " and droplet " << j << "!" << std::endl;
                 droplet_sps_coag_flag.at(i) = 1;
                 droplet_sps_coag_flag.at(j) = 1;
-                double new_n = sp_i.n + sp_j.n;
+                double new_n = 0.5*(sp_i.n + sp_j.n);
                 double new_vol = sp_i.vol + sp_j.vol;
                 double new_f_dry = (sp_i.vol*sp_i.f_dry + sp_j.vol*sp_j.f_dry)/new_vol;
                 double new_kappa = (sp_i.vol*sp_i.kappa + sp_j.vol*sp_j.kappa)/new_vol;
                 double new_ice_germs = sp_i.ice_germs + sp_j.ice_germs;
-                // Initialise two new droplet superparticles each with half the number density
-                new_droplet_sps.push_back(Superparticle(pop.sp_ID_count++, new_n/2, new_vol, new_f_dry, new_kappa, new_ice_germs, false));
-                new_droplet_sps.push_back(Superparticle(pop.sp_ID_count++, new_n/2, new_vol, new_f_dry, new_kappa, new_ice_germs, false));
+                // Initialise a new droplet superparticle
+                new_droplet_sps.push_back(Superparticle(pop.sp_ID_count++, new_n, new_vol, new_f_dry, new_kappa, new_ice_germs, false));
                 break;
             }
         }
@@ -241,20 +246,19 @@ void Simulation::coagulation() {
             const Superparticle& sp_j = pop.crystal_sps.at(j);
             double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
             double random_number = distribution(global_rng());
-            // P_ij = beta_ij*const_fac
-            if (random_number < beta_ij*const_fac) {
+            // P_ij = beta_ij * const_fac;
+            if (random_number < beta_ij * const_fac) {
                 // Coagulation occurs
                 std::cout << "Coagulation between crystal " << i << " and crystal " << j << "!" << std::endl;
                 crystal_sps_coag_flag.at(i) = 1;
                 crystal_sps_coag_flag.at(j) = 1;
-                double new_n = sp_i.n + sp_j.n;
+                double new_n = 0.5*(sp_i.n + sp_j.n);
                 double new_vol = sp_i.vol + sp_j.vol;
                 double new_f_dry = (sp_i.vol*sp_i.f_dry + sp_j.vol*sp_j.f_dry)/new_vol;
                 double new_kappa = (sp_i.vol*sp_i.kappa + sp_j.vol*sp_j.kappa)/new_vol;
                 double new_ice_germs = sp_i.ice_germs + sp_j.ice_germs;
-                // Initialise two new crystal superparticles each with half the number density
-                new_crystal_sps.push_back(Superparticle(pop.sp_ID_count++, new_n/2, new_vol, new_f_dry, new_kappa, new_ice_germs, true));
-                new_crystal_sps.push_back(Superparticle(pop.sp_ID_count++, new_n/2, new_vol, new_f_dry, new_kappa, new_ice_germs, true));
+                // Initialise a new crystal superparticle
+                new_crystal_sps.push_back(Superparticle(pop.sp_ID_count++, new_n, new_vol, new_f_dry, new_kappa, new_ice_germs, true));
                 break;
             }
         }
@@ -275,24 +279,26 @@ void Simulation::coagulation() {
             const Superparticle& sp_j = pop.crystal_sps.at(j);
             double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
             double random_number = distribution(global_rng());
-            // P_ij = beta_ij*const_fac
-            if (random_number < beta_ij*const_fac) {
+            // P_ij = beta_ij * const_fac;
+            if (random_number < beta_ij * const_fac) {
                 // Coagulation occurs
                 std::cout << "Coagulation between droplet " << i << " and crystal " << j << "!" << std::endl;
                 droplet_sps_coag_flag.at(i) = 1;
                 crystal_sps_coag_flag.at(j) = 1;
-                double new_n = sp_i.n + sp_j.n;
+                double new_n = 0.5*(sp_i.n + sp_j.n);
                 double new_vol = sp_i.vol + sp_j.vol;
                 double new_f_dry = (sp_i.vol*sp_i.f_dry + sp_j.vol*sp_j.f_dry)/new_vol;
                 double new_kappa = (sp_i.vol*sp_i.kappa + sp_j.vol*sp_j.kappa)/new_vol;
                 double new_ice_germs = sp_i.ice_germs + sp_j.ice_germs;
                 // Assume resulting particles are frozen
-                // Initialise two new crystal superparticles each with half the number density
-                new_crystal_sps.push_back(Superparticle(pop.sp_ID_count++, new_n/2, new_vol, new_f_dry, new_kappa, new_ice_germs, true));
-                new_crystal_sps.push_back(Superparticle(pop.sp_ID_count++, new_n/2, new_vol, new_f_dry, new_kappa, new_ice_germs, true));
+                // Initialise a new crystal superparticle
+                new_crystal_sps.push_back(Superparticle(pop.sp_ID_count++, new_n, new_vol, new_f_dry, new_kappa, new_ice_germs, true));
                 break;
             }
         }
+        // Re-evaluate n_tot and num_sps
+        pop.update_n_tot();
+        pop.update_num_sps();
     }
 
     // Remove coagulated droplet superparticles

@@ -7,8 +7,8 @@ class Species {
 public:
     // Variables
     double n;
-    double r_mean;
-    double SD;
+    double GMR;
+    double GSD;
     double f_dry;
     double kappa;
 
@@ -42,6 +42,8 @@ public:
     std::vector<Superparticle> crystal_sps;
 
     void assign();
+    void update_n_tot();
+    void update_num_sps();
 
 private:
     void read_population();

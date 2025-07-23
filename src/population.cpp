@@ -26,7 +26,6 @@ void Population::assign() {
     double n_per_sp = n_tot/max_sps;
 
     // Assign superparticles
-    num_sps = 0;
     sp_ID_count = 0;
     int species_ID = 0;
     for (const Species& species : species_vec) {
@@ -36,17 +35,19 @@ void Population::assign() {
         if (num_sps_for_species == 0) {
             continue;
         }
-        double logr_mean = std::log(species.r_mean);
-        double logr_min = logr_mean - 4*species.SD;
-        double logr_max = logr_mean + 4*species.SD;
+        double logr_mean = std::log(species.GMR);
+        double SD = std::log(species.GSD);
+        double logr_min = logr_mean - 4*SD;
+        double logr_max = logr_mean + 4*SD;
         std::vector<double> logr_vec = linspace(logr_min, logr_max, num_r_choices);
-        std::vector<double> weights = normal_dist(logr_vec, logr_mean, species.SD);
+        std::vector<double> weights = normal_dist(logr_vec, logr_mean, SD);
         std::vector<double> vs = choose_vs(num_sps_for_species, logr_vec, weights);
         for (int i = 0; i < num_sps_for_species; i++) {
             droplet_sps.push_back(Superparticle(sp_ID_count++, n_per_sp, vs.at(i), species.f_dry, species.kappa, 0, false));
-            num_sps++;
         }
     }
+    // Determine num_sps
+    update_num_sps();
 }
 
 // Reads input file with variables relevant to Population
@@ -82,17 +83,17 @@ std::vector<Species> Population::read_species() {
         }
         // Read each line segment into string
         std::stringstream ss(line);
-        std::string n_str, r_mean_str, SD_str, f_dry_str, kappa_str;
+        std::string n_str, GMR_str, GSD_str, f_dry_str, kappa_str;
         std::getline(ss, n_str, ',');
-        std::getline(ss, r_mean_str, ',');
-        std::getline(ss, SD_str, ',');
+        std::getline(ss, GMR_str, ',');
+        std::getline(ss, GSD_str, ',');
         std::getline(ss, f_dry_str, ',');
         std::getline(ss, kappa_str, ',');
 
         // Convert strings to doubles
         double n = std::stod(n_str);
-        double r_mean = std::stod(r_mean_str);
-        double SD = std::stod(SD_str);
+        double GMR = std::stod(GMR_str);
+        double GSD = std::stod(GSD_str);
         double f_dry = std::stod(f_dry_str);
         double kappa = std::stod(kappa_str);
 
@@ -102,9 +103,9 @@ std::vector<Species> Population::read_species() {
             std::cerr << "Number density should be > 0. Stopping." << std::endl;
             exit(EXIT_FAILURE);
         }
-        if (r_mean <= 0) {
-            std::cerr << "Error: Read in mean radius of " << r_mean << "." << std::endl;
-            std::cerr << "Mean radius must be > 0. Stopping." << std::endl;
+        if (GMR <= 0) {
+            std::cerr << "Error: Read in geometric mean radius of " << GMR << "." << std::endl;
+            std::cerr << "Geometric mean radius must be > 0. Stopping." << std::endl;
             exit(EXIT_FAILURE);
         }
         if (f_dry < 0 ||  f_dry > 1) {
@@ -118,7 +119,7 @@ std::vector<Species> Population::read_species() {
             exit(EXIT_FAILURE);
         }
 
-        species_vec.push_back(Species(n, r_mean, SD, f_dry, kappa));
+        species_vec.push_back(Species(n, GMR, GSD, f_dry, kappa));
     }
     file.close();
     return species_vec;
@@ -127,11 +128,8 @@ std::vector<Species> Population::read_species() {
 // Randomly chooses a set of volumes for superparticles according to weights
 std::vector<double> Population::choose_vs(int num_sps_for_species, std::vector<double> logr_range, std::vector<double> weights) {
     std::vector<double> vs(num_sps_for_species);
-    //std::random_device rd;
-    //std::mt19937 gen(rd()); // Seed Mersenne Twister engine
     std::discrete_distribution<> distribution(weights.begin(), weights.end());
     for (int i = 0; i < num_sps_for_species; i++) {
-        //int random_index = distribution(gen);
         int random_index = distribution(global_rng());
         double r = std::exp(logr_range.at(random_index));
         vs.at(i) = 4*PI/3*std::pow(r, 3);
@@ -139,10 +137,27 @@ std::vector<double> Population::choose_vs(int num_sps_for_species, std::vector<d
     return vs;
 }
 
-Species::Species(double n, double r_mean, double SD, double f_dry, double kappa) {
+// Sets n_tot inside Population
+void Population::update_n_tot() {
+    double sum = 0;
+    for (Superparticle& sp : droplet_sps) {
+        sum += sp.n;
+    }
+    for (Superparticle& sp : crystal_sps) {
+        sum += sp.n;
+    }
+    n_tot = sum;
+}
+
+// Sets num_sps inside Population
+void Population::update_num_sps() {
+    num_sps = droplet_sps.size() + crystal_sps.size();
+}
+
+Species::Species(double n, double GMR, double GSD, double f_dry, double kappa) {
     this->n = n;
-    this->r_mean = r_mean;
-    this->SD = SD;
+    this->GMR = GMR;
+    this->GSD = GSD;
     this->f_dry = f_dry;
     this->kappa = kappa;
 }

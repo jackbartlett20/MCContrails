@@ -19,9 +19,12 @@ private:
     double r_output_max;
     int num_r_intervals_output;
     int do_coagulation;
+    int num_dt_for_coag;
     unsigned long long rng_seed_read;
     double write_interval;
     double next_write_time;
+    double coag_interval;
+    double next_coag_time;
     double current_time;
     Environment env;
     Population pop;
