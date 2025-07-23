@@ -1,16 +1,23 @@
 CXX = g++
+# If compiling with MPI, use below instead:
+# CXX = mpicxx
 
 TARGET = MCContrails
 SRCDIR = src
 OBJDIR = obj
 
-# Define compiler flags
+# Compiler flags explained
 # -Wall: Enable all standard warnings
 # -Wextra: Enable extra warnings
 # -g: Include debugging information
 # -std=c++17: Use C++17 standard (adjust as needed, e.g., c++11, c++14, c++20)
-CXXFLAGS = -Wall -Wextra -g -std=c++17 -I$(SRCDIR)
-#CXXFLAGS = -Wall -Wextra -std=c++17 -I$(SRCDIR)
+# -O0: No optimisation
+# -O3: Aggresive optimisation
+
+# Optimised option:
+CXXFLAGS = -Wall -Wextra -std=c++17 -O3 -I$(SRCDIR)
+# Debug option:
+#CXXFLAGS = -Wall -Wextra -g -std=c++17 -O0 -I$(SRCDIR)
 
 SRCS = $(wildcard $(SRCDIR)/*.cpp)
 
@@ -35,9 +42,9 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo "Compiling $<..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Rule to clean up generated files
+# Rule to clean up object files and executable
 clean:
-	@rm -rf $(OBJDIR) # Remove object files
+	@rm -rf $(OBJDIR) $(TARGET)
 
 # Phony targets: these are not actual files, but names for commands
 .PHONY: all clean
