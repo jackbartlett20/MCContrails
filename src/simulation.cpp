@@ -296,9 +296,6 @@ void Simulation::coagulation() {
                 break;
             }
         }
-        // Re-evaluate n_tot and num_sps
-        pop.update_n_tot();
-        pop.update_num_sps();
     }
 
     // Remove coagulated droplet superparticles
@@ -321,6 +318,10 @@ void Simulation::coagulation() {
     for (const Superparticle& sp : new_crystal_sps) {
         pop.crystal_sps.push_back(sp);
     }
+
+    // Re-evaluate n_tot and num_sps
+    pop.update_n_tot();
+    pop.update_num_sps();
 }
 
 // Calculates the Brownian coagulation coefficient (m3 s-1) from Fuchs' interpolation formula (Seinfeld and Pandis Table 13.1)
