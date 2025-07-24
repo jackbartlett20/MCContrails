@@ -57,6 +57,8 @@ private:
 
     double particle_g(double r, double D, double c);
 
+    SPTemp new_props(Superparticle sp_i, Superparticle sp_j);
+
     void freezing();
 
     void prepare_output();

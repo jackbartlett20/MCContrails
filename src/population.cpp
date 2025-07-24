@@ -171,3 +171,11 @@ Superparticle::Superparticle(int ID, double n, double vol, double f_dry, double 
     this->ice_germs = ice_germs;
     this->isFrozen = isFrozen;
 }
+
+SPTemp::SPTemp(double n, double vol, double f_dry, double kappa, double ice_germs) {
+    this->n = n;
+    this->vol = vol;
+    this->f_dry = f_dry;
+    this->kappa = kappa;
+    this->ice_germs = ice_germs;
+}

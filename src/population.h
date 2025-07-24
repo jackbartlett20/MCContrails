@@ -29,6 +29,19 @@ public:
     Superparticle(int ID, double n, double vol, double f_dry, double kappa, double ice_germs, bool isFrozen);
 };
 
+// Used in coagulation to temporarily store the doubles for new superparticles
+class SPTemp {
+public:
+    // Variables
+    double n;
+    double vol;
+    double f_dry;
+    double kappa;
+    double ice_germs;
+
+    SPTemp(double n, double vol, double f_dry, double kappa, double ice_germs);
+};
+
 class Population {
 public:
     // Variables

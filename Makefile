@@ -1,6 +1,4 @@
 CXX = g++
-# If compiling with MPI, use below instead:
-# CXX = mpicxx
 
 TARGET = MCContrails
 SRCDIR = src
@@ -11,13 +9,14 @@ OBJDIR = obj
 # -Wextra: Enable extra warnings
 # -g: Include debugging information
 # -std=c++17: Use C++17 standard (adjust as needed, e.g., c++11, c++14, c++20)
+# -fopenmp: Enable OpenMP parallelisation
 # -O0: No optimisation
 # -O3: Aggresive optimisation
 
 # Optimised option:
-CXXFLAGS = -Wall -Wextra -std=c++17 -O3 -I$(SRCDIR)
+CXXFLAGS = -Wall -Wextra -std=c++17 -O3 -I$(SRCDIR) -fopenmp
 # Debug option:
-#CXXFLAGS = -Wall -Wextra -g -std=c++17 -O0 -I$(SRCDIR)
+#CXXFLAGS = -Wall -Wextra -g -std=c++17 -O0 -I$(SRCDIR) -fopenmp
 
 SRCS = $(wildcard $(SRCDIR)/*.cpp)
 
