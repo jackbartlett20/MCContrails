@@ -74,14 +74,33 @@ void Environment::set_env(const double current_time) {
     // Mean free path of air (m) - assumes effective collision diameter 0.37 nm
     mfp_air = (BOLTZMANN_CONSTANT*T)/(std::sqrt(2)*PI*std::pow(0.37e-9, 2)*P_ambient);
 
-    // Water density (kg m-3)
-    water_density = 1000;
+    // Water and ice density (kg m-3)
+    if (first_call) {
+        water_density_old = rho_w_liq(T);
+        ice_density_old = rho_w_ice(T);
+    }
+    else {
+        water_density_old = water_density;
+        ice_density_old = ice_density;
+    }
+    first_call = false;
+    water_density = rho_w_liq(T);
+    ice_density = rho_w_ice(T);
+
+    // H2O molecular vol in liquid (m3)
+    H2O_vol_liquid = H2O_MOLECULAR_MASS / water_density;
+
+    // H2O molecular vol in ice (m3)
+    H2O_vol_ice = H2O_MOLECULAR_MASS / ice_density;
 
     // Water surface tension (N m-1) - IAPWS
     sigma_water = 235.8e-3 * std::pow(1-T/647.096, 1.256) * (1 - 0.625*(1-T/647.096));
 
+    // Ice surface tension (N m-1) - Pruppacher and Klett
+    sigma_ice = 0.1;
+
     // Thermal speed of water vapour (m s-1)
-    vapour_thermal_speed = std::sqrt(8 * BOLTZMANN_CONSTANT * T / (PI*WATER_MOLECULAR_MASS));
+    vapour_thermal_speed = std::sqrt(8 * BOLTZMANN_CONSTANT * T / (PI*H2O_MOLECULAR_MASS));
 
     // Diffusivity (m2 s-1) - Pruppacher and Klett eq. 13-3
     diffusivity = 2.11e-5 * std::pow(T/273.15, 1.94) * (101325 / P_ambient);
@@ -94,4 +113,28 @@ void Environment::set_env(const double current_time) {
 
     // H2O number concentration (m-3) - REMOVE WHEN CRYSTAL GROWTH UPDATED
     n_sat = AVOGADRO_CONSTANT * Pvap / (IDEAL_GAS_CONSTANT * T);
+}
+
+// Calculates density of liquid water (kg m-3) - Sippola and Taskinen (2018)
+double Environment::rho_w_liq(double T) {
+    double rho_0 = 1007.853; // kg m-3
+    double T_c = 228; // K
+    double A = 3.9744e-4;
+    double B = 1.6785e-3;
+    double C = -7.816510e-4;
+    double eps;
+    if (T > T_c) {
+        eps = T/T_c - 1;
+    }
+    else {
+        eps = 0;
+    }
+    double rho = rho_0 * std::exp(-T_c * (A + B*eps + 2*C*std::pow(eps, 0.5)));
+    return rho;
+}
+
+// Calculates approximate density of ice (kg m-3)
+double Environment::rho_w_ice(double T) {
+    double rho = 917 - 0.13*(std::min(T-273.15, 0.));
+    return rho;
 }

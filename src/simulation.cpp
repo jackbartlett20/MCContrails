@@ -37,7 +37,7 @@ void Simulation::run() {
         current_time += dt;
         //std::cout << "Current time: " << current_time << std::endl;
         env.set_env(current_time);
-        // Update volume based on change in water density
+        update_water_vol();
         growth();
         if (do_coagulation == 1) {
             if (current_time >= next_coag_time) {
@@ -80,60 +80,64 @@ void Simulation::read_simulation() {
     file.close();
 }
 
+// Updates volume of water in each droplet/crystal to reflect change in density
+void Simulation::update_water_vol() {
+    double dens_ratio;
+    // Droplets
+    dens_ratio = env.water_density_old / env.water_density;
+    #pragma omp parallel for
+    for (Superparticle& sp : pop.droplet_sps) {
+        double water_vol = dens_ratio * sp.vol * (1 - sp.f_dry);
+        double dry_vol = sp.vol * sp.f_dry;
+        double new_vol = dry_vol + water_vol;
+        sp.vol = new_vol;
+        sp.f_dry = dry_vol / new_vol;
+    }
+
+    // Crystals
+    dens_ratio = env.ice_density_old / env.ice_density;
+    #pragma omp parallel for
+    for (Superparticle& sp : pop.crystal_sps) {
+        double water_vol = dens_ratio * sp.vol * (1 - sp.f_dry);
+        double dry_vol = sp.vol * sp.f_dry;
+        double new_vol = dry_vol + water_vol;
+        sp.vol = new_vol;
+        sp.f_dry = dry_vol / new_vol;
+    }
+}
+
 // Grows the superparticles
 void Simulation::growth() {
-    double sum_gn = 0;
-
     // Droplets
+    double sum_gn_droplet = 0;
     // Parallelise for loop
-    #pragma omp parallel for reduction(+:sum_gn)
+    #pragma omp parallel for reduction(+:sum_gn_droplet)
     for (Superparticle& sp : pop.droplet_sps) {
         double growth_rate = growth_rate_liquid(sp.vol, sp.f_dry, sp.kappa);
         sp.f_dry = (sp.f_dry * sp.vol) / (sp.vol + growth_rate * dt);
         sp.vol += growth_rate * dt;
-        sum_gn += growth_rate * sp.n;
+        sum_gn_droplet += growth_rate * sp.n;
         
         // Adjust f_dry within tolerance
-        if (sp.f_dry > 1 && sp.f_dry < 1+pop.f_dry_tol) {
-            sp.f_dry = 1;
-        }
-        else if (sp.f_dry < 0 && sp.f_dry > -pop.f_dry_tol) {
-            sp.f_dry = 0;
-        }
-        // Check valid
-        if (sp.f_dry < 0 || sp.f_dry > 1) {
-            std::cerr << "Error: Found dry fraction of " << sp.f_dry << " after growth." << std::endl;
-            std::cerr << "Try reducing dt. Stopping." << std::endl;
-            exit(EXIT_FAILURE);
-        }
+        sp.f_dry = check_valid_f_dry(sp.f_dry);
     }
 
     // Crystals
+    double sum_gn_crystal = 0;
     // Parallelise for loop
-    #pragma omp parallel for reduction(+:sum_gn)
+    #pragma omp parallel for reduction(+:sum_gn_crystal)
     for (Superparticle& sp : pop.crystal_sps) {
         double growth_rate = growth_rate_crystal(sp.vol);
         sp.f_dry = (sp.f_dry * sp.vol) / (sp.vol + growth_rate * dt);
         sp.vol += growth_rate * dt;
-        sum_gn += growth_rate * sp.n;
+        sum_gn_crystal += growth_rate * sp.n;
         
         // Adjust f_dry within tolerance
-        if (sp.f_dry > 1 && sp.f_dry < 1+pop.f_dry_tol) {
-            sp.f_dry = 1;
-        }
-        else if (sp.f_dry < 0 && sp.f_dry > -pop.f_dry_tol) {
-            sp.f_dry = 0;
-        }
-        // Check valid
-        if (sp.f_dry < 0 || sp.f_dry > 1) {
-            std::cerr << "Error: Found dry fraction of " << sp.f_dry << " after growth." << std::endl;
-            std::cerr << "Try reducing dt. Stopping." << std::endl;
-            exit(EXIT_FAILURE);
-        }
+        sp.f_dry = check_valid_f_dry(sp.f_dry);
     }
 
     // Update vapour pressure
-    env.Pvap += (BOLTZMANN_CONSTANT * env.T * (-sum_gn / WATER_MOLECULAR_VOLUME)) * dt;
+    env.Pvap -= (BOLTZMANN_CONSTANT * env.T * (sum_gn_droplet/env.H2O_vol_liquid + sum_gn_crystal/env.H2O_vol_ice)) * dt;
 }
 
 // Calculates growth rate for droplets (m3 s-1)
@@ -146,9 +150,9 @@ double Simulation::growth_rate_liquid(const double v, const double f_dry, const 
     }
     else {
         raoult_term = (1 - f_dry)/(1 - (1 - kappa)*f_dry);
-    } 
+    }
 
-    double kelvin_term = std::exp((2*env.sigma_water*WATER_MOLAR_MASS)/(IDEAL_GAS_CONSTANT*env.T*WATER_DENSITY*r));
+    double kelvin_term = std::exp((2*env.sigma_water*WATER_MOLAR_MASS)/(IDEAL_GAS_CONSTANT*env.T*env.water_density*r));
 
     double S_droplet = raoult_term * kelvin_term;
 
@@ -160,9 +164,9 @@ double Simulation::growth_rate_liquid(const double v, const double f_dry, const 
                                     + env.k_air/(r*accom_coeff*env.air_density*CP_AIR)
                                     * std::sqrt(2*PI*AIR_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.T)));
 
-    double F_d = (WATER_DENSITY * IDEAL_GAS_CONSTANT * env.T) / (env.Psat_l * diffusivity_mod * WATER_MOLAR_MASS);
+    double F_d = (env.water_density * IDEAL_GAS_CONSTANT * env.T) / (env.Psat_l * diffusivity_mod * WATER_MOLAR_MASS);
 
-    double F_k = (env.l_v * WATER_DENSITY)/(k_air_mod * env.T) * (env.l_v*WATER_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.T) - 1);
+    double F_k = (env.l_v * env.water_density)/(k_air_mod * env.T) * (env.l_v*WATER_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.T) - 1);
 
     double growth_rate = (4*PI*r) * 1/(F_d + F_k) * (env.S_l - S_droplet);
     return growth_rate;
@@ -172,10 +176,29 @@ double Simulation::growth_rate_liquid(const double v, const double f_dry, const 
 double Simulation::growth_rate_crystal(const double v) {
     const double r = std::pow(3*v/(4*PI), 1./3.);
     const double accom_coeff = 1;
+    // Only Kelvin term for crystals
+    double S_crystal = std::exp((2*env.sigma_ice*WATER_MOLAR_MASS)/(IDEAL_GAS_CONSTANT*env.T*env.ice_density*r));
     double correction_factor = 1 + accom_coeff * env.vapour_thermal_speed * r / (4 * env.diffusivity);
-    double J = (PI * std::pow(r,2) * accom_coeff * env.vapour_thermal_speed * (env.S_i - 1) * env.n_sat) / correction_factor;
-    double growth_rate = WATER_MOLECULAR_VOLUME * J;
+    double J = (PI * std::pow(r,2) * accom_coeff * env.vapour_thermal_speed * env.n_sat) / correction_factor * (env.S_i - S_crystal);
+    double growth_rate = env.H2O_vol_ice * J;
     return growth_rate;
+}
+
+// Adjusts new f_dry within tolerance; raises error if invalid
+double Simulation::check_valid_f_dry(double f_dry) {
+    if (f_dry > 1 && f_dry < 1+pop.f_dry_tol) {
+        f_dry = 1;
+    }
+    else if (f_dry < 0 && f_dry > -pop.f_dry_tol) {
+        f_dry = 0;
+    }
+    // Check valid
+    if (f_dry < 0 || f_dry > 1) {
+        std::cerr << "Error: Found dry fraction of " << f_dry << " after growth." << std::endl;
+        std::cerr << "Try reducing dt. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return f_dry;
 }
 
 // Coagulates the superparticles
@@ -305,25 +328,37 @@ void Simulation::coagulation() {
         }
     }
 
+    int num_removed = 0;
+    int num_added = 0;
+
     // Remove coagulated droplet superparticles
     for (int i = num_droplet_sps - 1; i >=0; i--) {
         if (droplet_sps_coag_flag[i].load()) {
             pop.droplet_sps.erase(pop.droplet_sps.begin() + i);
+            num_removed++;
         }
     }
     // Remove coagulated crystal superparticles
     for (int i = num_crystal_sps - 1; i >=0; i--) {
         if (crystal_sps_coag_flag[i].load()) {
             pop.crystal_sps.erase(pop.crystal_sps.begin() + i);
+            num_removed++;
         }
     }
     // Add new droplet superparticles
     for (const SPTemp& props : new_droplet_props) {
         pop.droplet_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.f_dry, props.kappa, props.ice_germs, false));
+        num_added++;
     }
     // Add new crystal superparticles
     for (const SPTemp& props : new_crystal_props) {
         pop.crystal_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.f_dry, props.kappa, props.ice_germs, true));
+        num_added++;
+    }
+
+    if (2*num_added != num_removed) {
+        std::cerr << "num_added = " << num_added << ", num_removed = " << num_removed << ". Stopping." << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     // Re-evaluate n_tot and num_sps
@@ -388,9 +423,14 @@ SPTemp Simulation::new_props(Superparticle sp_i, Superparticle sp_j) {
 void Simulation::freezing() {
     // Number of ice germs formed per droplet vol per second
     double ice_germ_rate = 1e6 * std::exp(-3.5714 * env.T + 858.719);
+    // Update number of ice germs
+    #pragma omp parallel for
+    for (Superparticle& sp : pop.droplet_sps) {
+        sp.ice_germs += ice_germ_rate * sp.vol * (1 - sp.f_dry) * dt;
+    }
+    // Remove if frozen (iterate backwards to allow erase to work)
     for (int i = pop.droplet_sps.size() - 1; i >= 0; i--) {
         Superparticle& sp = pop.droplet_sps.at(i);
-        sp.ice_germs += ice_germ_rate * sp.vol * (1 - sp.f_dry) * dt;
         if (sp.ice_germs >= 1) {
             sp.isFrozen = true;
             pop.crystal_sps.push_back(sp);

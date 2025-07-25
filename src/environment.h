@@ -23,7 +23,13 @@ public:
     double air_viscosity;
     double mfp_air;
     double water_density;
+    double water_density_old;
+    double ice_density;
+    double ice_density_old;
+    double H2O_vol_liquid;
+    double H2O_vol_ice;
     double sigma_water;
+    double sigma_ice;
     double vapour_thermal_speed;
     double diffusivity;
     double k_air;
@@ -35,7 +41,14 @@ public:
     void set_env(const double current_time);
 
 private:
+    // Variables
+    bool first_call = true;
+    
     void read_env();
+
+    double rho_w_liq(double T);
+
+    double rho_w_ice(double T);
 };
 
 #endif

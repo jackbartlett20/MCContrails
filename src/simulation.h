@@ -39,11 +39,15 @@ private:
 
     void read_simulation();
 
+    void update_water_vol();
+
     void growth();
 
     double growth_rate_liquid(const double v, const double f_dry, const double kappa);
 
     double growth_rate_crystal(const double v);
+
+    double check_valid_f_dry(double f_dry);
 
     void coagulation();
 
