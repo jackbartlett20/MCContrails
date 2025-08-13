@@ -7,12 +7,12 @@
 
 - OpenMP
 
-MCContrails uses OpenMP for parallelisation of growth and coagulation. Ensure `OMP_NUM_THREADS` is correctly set.
+MCContrails uses OpenMP for parallelisation of functions including growth and coagulation. Ensure `OMP_NUM_THREADS` is correctly set.
 
 
 ## Compiling
 
-The code is compiled with `make` in the main directory. This creates the file `MCContrails`. If recompiling, `make -B` is safest.
+The code is compiled with `make` in the main directory. This creates the file `MCContrails`. If recompiling, `make -B` is safest. The headers used for IAPWS formulations (see [Model physics](#model-physics)) require C++20.
 
 
 ## Executing
@@ -41,11 +41,13 @@ The columns of the environmental variables (`environment.out`) are:
 
 Plume dynamics currently follow [Kärcher et al. (2015)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2015JD023491). It can be amended in the `Environment` class as desired.
 
-The droplet growth equation follows Pruppacher and Klett / Seinfeld and Pandis.
+The droplet growth equation follows Pruppacher and Klett equation (12-28) and Seinfeld and Pandis equation (17.53).
 
 Freezing and ice crystal growth is adapted from [Kärcher et al. (2015)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2015JD023491).
 
 Coagulation uses the Fuchs interpolation formula for Brownian coagulation as described in Seinfeld and Pandis Table 13.1.
+
+Liquid water and ice densities are updated with temperature and pressure following [IAPWS R6-95(2018)](https://iapws.org/documents/release/IAPWS-95) and [IAPWS R10-06(2009)](https://iapws.org/documents/release/Ice-2009) using the C++ headers published by [calculisto](https://github.com/calculisto/iapws) as of 28th March 2025.
 
 
 ## Notes
@@ -60,7 +62,9 @@ Calculating coagulation is a computationally-intensive process. To improve perfo
 
 The number of superparticles decreases over time as coagulation occurs to ensure that all superparticles have equal number densities. This is a requirement for 1-to-1 coagulation and results in the program speeding up as it executes.
 
+All particles are assumed to be spherical.
+
 
 ## Authors
 
-Code developed and written by Jack Bartlett.
+All code developed and written by Jack Bartlett except for IAPWS formulations by [calculisto](https://github.com/calculisto/iapws).

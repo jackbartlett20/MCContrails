@@ -47,6 +47,7 @@ private:
 
     double growth_rate_crystal(const double v);
 
+    void check_valid_vol(double vol);
     double check_valid_f_dry(double f_dry);
 
     void coagulation();
@@ -59,7 +60,7 @@ private:
 
     double thermal_speed(double v);
 
-    double particle_g(double r, double D, double c);
+    double coag_g(double r, double D, double c);
 
     SPTemp new_props(Superparticle sp_i, Superparticle sp_j);
 

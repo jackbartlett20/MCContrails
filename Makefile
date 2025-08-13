@@ -3,6 +3,7 @@ CXX = g++
 TARGET = MCContrails
 SRCDIR = src
 OBJDIR = obj
+INCLUDES = -I$(SRCDIR) -Iinclude
 
 # Compiler flags explained
 # -Wall: Enable all standard warnings
@@ -14,9 +15,9 @@ OBJDIR = obj
 # -O3: Aggresive optimisation
 
 # Optimised option:
-CXXFLAGS = -Wall -Wextra -std=c++17 -O3 -I$(SRCDIR) -fopenmp
+CXXFLAGS = -Wall -Wextra -std=c++20 -O3 $(INCLUDES) -fopenmp
 # Debug option:
-#CXXFLAGS = -Wall -Wextra -g -std=c++17 -O0 -I$(SRCDIR) -fopenmp
+#CXXFLAGS = -Wall -Wextra -g -std=c++20 -O0 $(INCLUDES) -fopenmp
 
 SRCS = $(wildcard $(SRCDIR)/*.cpp)
 

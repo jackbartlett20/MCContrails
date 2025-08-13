@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <limits>
 #include <cmath>
+#include <calculisto/iapws/r6_inverse.hpp>
+#include <calculisto/iapws/r10.hpp>
 #include "environment.h"
 #include "constants.h"
 
@@ -42,6 +44,7 @@ void Environment::read_env() {
 
 // Sets environmental variables according to current time
 void Environment::set_env(const double current_time) {
+    // Adiabatic plume mixing
     double dilution_factor;
     if (current_time <= tau_m) {
         dilution_factor = 1;
@@ -56,6 +59,7 @@ void Environment::set_env(const double current_time) {
     // However, it does decrease like temperature due to mixing
     Pvap += mixing_grad * (T_new - T);
     T = T_new;
+    //std::cout << "Pvap: " << Pvap << std::endl;
 
     // Buck equations
     Psat_l = 6.1121e2*std::exp((18.678 - (T-273.15)/234.5) * ((T-273.15)/(T-16.01)));
@@ -76,22 +80,30 @@ void Environment::set_env(const double current_time) {
 
     // Water and ice density (kg m-3)
     if (first_call) {
-        water_density_old = rho_w_liq(T);
-        ice_density_old = rho_w_ice(T);
+        water_density_old = rho_w_liq(T, P_ambient);
+        ice_density_old = rho_w_ice(T, P_ambient);
     }
     else {
         water_density_old = water_density;
         ice_density_old = ice_density;
     }
     first_call = false;
-    water_density = rho_w_liq(T);
-    ice_density = rho_w_ice(T);
+    water_density = rho_w_liq(T, P_ambient);
+    ice_density = rho_w_ice(T, P_ambient);
+    //std::cout << "water_density: " << water_density << std::endl;
+    //std::cout << "ice_density: " << ice_density << std::endl;
 
     // H2O molecular vol in liquid (m3)
     H2O_vol_liquid = H2O_MOLECULAR_MASS / water_density;
 
     // H2O molecular vol in ice (m3)
     H2O_vol_ice = H2O_MOLECULAR_MASS / ice_density;
+
+    // H2O molar volume in liquid (m3 mol-1)
+    water_molar_vol = H2O_vol_liquid * AVOGADRO_CONSTANT;
+
+    // H2O molar volume in ice (m3 mol-1)
+    ice_molar_vol = H2O_vol_ice * AVOGADRO_CONSTANT;
 
     // Water surface tension (N m-1) - IAPWS
     sigma_water = 235.8e-3 * std::pow(1-T/647.096, 1.256) * (1 - 0.625*(1-T/647.096));
@@ -115,26 +127,14 @@ void Environment::set_env(const double current_time) {
     n_sat = AVOGADRO_CONSTANT * Pvap / (IDEAL_GAS_CONSTANT * T);
 }
 
-// Calculates density of liquid water (kg m-3) - Sippola and Taskinen (2018)
-double Environment::rho_w_liq(double T) {
-    double rho_0 = 1007.853; // kg m-3
-    double T_c = 228; // K
-    double A = 3.9744e-4;
-    double B = 1.6785e-3;
-    double C = -7.816510e-4;
-    double eps;
-    if (T > T_c) {
-        eps = T/T_c - 1;
-    }
-    else {
-        eps = 0;
-    }
-    double rho = rho_0 * std::exp(-T_c * (A + B*eps + 2*C*std::pow(eps, 0.5)));
+// Calculates density of liquid water (kg m-3) using IAPWS R6-95(2018)
+double Environment::rho_w_liq(double T, double P) {
+    double rho = calculisto::iapws::r6_inverse::density_pt(P, std::max(T, 235.));
     return rho;
 }
 
-// Calculates approximate density of ice (kg m-3)
-double Environment::rho_w_ice(double T) {
-    double rho = 917 - 0.13*(std::min(T-273.15, 0.));
+// Calculates density of ice (kg m-3) using IAPWS R10-06(2009)
+double Environment::rho_w_ice(double T, double P) {
+    double rho = calculisto::iapws::r10::density_pt(P, T);
     return rho;
 }

@@ -28,6 +28,8 @@ public:
     double ice_density_old;
     double H2O_vol_liquid;
     double H2O_vol_ice;
+    double water_molar_vol;
+    double ice_molar_vol;
     double sigma_water;
     double sigma_ice;
     double vapour_thermal_speed;
@@ -46,9 +48,9 @@ private:
     
     void read_env();
 
-    double rho_w_liq(double T);
+    double rho_w_liq(double T, double P);
 
-    double rho_w_ice(double T);
+    double rho_w_ice(double T, double P);
 };
 
 #endif
