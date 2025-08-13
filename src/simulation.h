@@ -43,11 +43,11 @@ private:
 
     void growth();
 
-    double growth_rate_liquid(const double v, const double f_dry, const double kappa);
+    double growth_rate_liquid(const double v, const double v_dry, const double kappa);
 
     double growth_rate_crystal(const double v);
 
-    void check_valid_vol(double vol);
+    double check_valid_vol(double vol, double dry_vol);
     double check_valid_f_dry(double f_dry);
 
     void coagulation();

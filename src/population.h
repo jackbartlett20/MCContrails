@@ -21,12 +21,12 @@ public:
     int ID;
     double n;
     double vol;
-    double f_dry;
+    double dry_vol;
     double kappa;
     double ice_germs;
     bool isFrozen;
 
-    Superparticle(int ID, double n, double vol, double f_dry, double kappa, double ice_germs, bool isFrozen);
+    Superparticle(int ID, double n, double vol, double dry_vol, double kappa, double ice_germs, bool isFrozen);
 };
 
 // Used in coagulation to temporarily store the doubles for new superparticles
@@ -35,11 +35,11 @@ public:
     // Variables
     double n;
     double vol;
-    double f_dry;
+    double dry_vol;
     double kappa;
     double ice_germs;
 
-    SPTemp(double n, double vol, double f_dry, double kappa, double ice_germs);
+    SPTemp(double n, double vol, double dry_vol, double kappa, double ice_germs);
 };
 
 class Population {

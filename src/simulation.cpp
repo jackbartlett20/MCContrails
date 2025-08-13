@@ -88,22 +88,14 @@ void Simulation::update_water_vol() {
     dens_ratio = env.water_density_old / env.water_density;
     #pragma omp parallel for
     for (Superparticle& sp : pop.droplet_sps) {
-        double water_vol = dens_ratio * sp.vol * (1 - sp.f_dry);
-        double dry_vol = sp.vol * sp.f_dry;
-        double new_vol = dry_vol + water_vol;
-        sp.vol = new_vol;
-        sp.f_dry = dry_vol / new_vol;
+        sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
     }
 
     // Crystals
     dens_ratio = env.ice_density_old / env.ice_density;
     #pragma omp parallel for
     for (Superparticle& sp : pop.crystal_sps) {
-        double water_vol = dens_ratio * sp.vol * (1 - sp.f_dry);
-        double dry_vol = sp.vol * sp.f_dry;
-        double new_vol = dry_vol + water_vol;
-        sp.vol = new_vol;
-        sp.f_dry = dry_vol / new_vol;
+        sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
     }
 }
 
@@ -114,14 +106,11 @@ void Simulation::growth() {
     // Parallelise for loop
     #pragma omp parallel for reduction(+:sum_gn_droplet)
     for (Superparticle& sp : pop.droplet_sps) {
-        double growth_rate = growth_rate_liquid(sp.vol, sp.f_dry, sp.kappa);
-        sp.f_dry = (sp.f_dry * sp.vol) / (sp.vol + growth_rate * dt);
+        double growth_rate = growth_rate_liquid(sp.vol, sp.dry_vol, sp.kappa);
         sp.vol += growth_rate * dt;
         sum_gn_droplet += growth_rate * sp.n;
         // Check volume
-        check_valid_vol(sp.vol);
-        // Check f_dry and adjust within tolerance
-        sp.f_dry = check_valid_f_dry(sp.f_dry);
+        sp.vol = check_valid_vol(sp.vol, sp.dry_vol);
     }
 
     // Crystals
@@ -130,13 +119,10 @@ void Simulation::growth() {
     #pragma omp parallel for reduction(+:sum_gn_crystal)
     for (Superparticle& sp : pop.crystal_sps) {
         double growth_rate = growth_rate_crystal(sp.vol);
-        sp.f_dry = (sp.f_dry * sp.vol) / (sp.vol + growth_rate * dt);
         sp.vol += growth_rate * dt;
         sum_gn_crystal += growth_rate * sp.n;
         // Check volume
-        check_valid_vol(sp.vol);
-        // Check f_dry and adjust within tolerance
-        sp.f_dry = check_valid_f_dry(sp.f_dry);
+        sp.vol = check_valid_vol(sp.vol, sp.dry_vol);
     }
 
     // Update vapour pressure
@@ -144,8 +130,9 @@ void Simulation::growth() {
 }
 
 // Calculates growth rate for droplets (m3 s-1)
-double Simulation::growth_rate_liquid(const double v, const double f_dry, const double kappa) {
+double Simulation::growth_rate_liquid(const double v, const double v_dry, const double kappa) {
     const double r = std::pow(3*v/(4*PI), 1./3.);
+    const double f_dry = v_dry/v;
     const double accom_coeff = 1;
 
     double raoult_term;
@@ -177,7 +164,7 @@ double Simulation::growth_rate_liquid(const double v, const double f_dry, const 
 
     // Determine growth rate; set to 0 if in highly volatile regime
     double growth_rate;
-    if (raoult_term == 0 && kelvin_term > 1e2) {
+    if (raoult_term == 0 && env.S_l < kelvin_term) {
         growth_rate = 0;
     }
     else {
@@ -199,12 +186,12 @@ double Simulation::growth_rate_crystal(const double v) {
 }
 
 // Raises error is volume is negative
-void Simulation::check_valid_vol(double vol) {
-    if (vol <= 0) {
-        std::cerr << "Found droplet volume of " << vol << " after growth." << std::endl;
-        std::cerr << "Try reducing dt. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
+double Simulation::check_valid_vol(double vol, double dry_vol) {
+    if (vol < dry_vol) {
+        std::cerr << "Found volume = " << vol/dry_vol << " * dry volume after growth." << std::endl;
+        vol = dry_vol;
     }
+    return vol;
 }
 
 // Adjusts new f_dry within tolerance; raises error if invalid
@@ -368,11 +355,11 @@ void Simulation::coagulation() {
     }
     // Add new droplet superparticles
     for (const SPTemp& props : new_droplet_props) {
-        pop.droplet_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.f_dry, props.kappa, props.ice_germs, false));
+        pop.droplet_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.dry_vol, props.kappa, props.ice_germs, false));
     }
     // Add new crystal superparticles
     for (const SPTemp& props : new_crystal_props) {
-        pop.crystal_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.f_dry, props.kappa, props.ice_germs, true));
+        pop.crystal_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.dry_vol, props.kappa, props.ice_germs, true));
     }
 
     // Re-evaluate n_tot and num_sps
@@ -427,10 +414,10 @@ double Simulation::coag_g(double r, double D, double c) {
 SPTemp Simulation::new_props(Superparticle sp_i, Superparticle sp_j) {
     double new_n = std::min(sp_i.n, sp_j.n);
     double new_vol = sp_i.vol + sp_j.vol;
-    double new_f_dry = (sp_i.vol*sp_i.f_dry + sp_j.vol*sp_j.f_dry)/new_vol;
+    double new_dry_vol = sp_i.dry_vol + sp_j.dry_vol;
     double new_kappa = (sp_i.vol*sp_i.kappa + sp_j.vol*sp_j.kappa)/new_vol;
     double new_ice_germs = sp_i.ice_germs + sp_j.ice_germs;
-    return SPTemp(new_n, new_vol, new_f_dry, new_kappa, new_ice_germs);
+    return SPTemp(new_n, new_vol, new_dry_vol, new_kappa, new_ice_germs);
 }
 
 // Updates number of ice germs in droplets and freezes if >1
@@ -440,7 +427,7 @@ void Simulation::freezing() {
     // Update number of ice germs
     #pragma omp parallel for
     for (Superparticle& sp : pop.droplet_sps) {
-        sp.ice_germs += ice_germ_rate * sp.vol * (1 - sp.f_dry) * dt;
+        sp.ice_germs += ice_germ_rate * (sp.vol - sp.dry_vol) * dt;
     }
     // Remove if frozen (iterate backwards to allow erase to work)
     double dens_ratio = env.water_density/env.ice_density;
@@ -449,11 +436,7 @@ void Simulation::freezing() {
         if (sp.ice_germs >= 1) {
             // Update properties
             sp.isFrozen = true;
-            double water_vol = dens_ratio * sp.vol * (1 - sp.f_dry);
-            double dry_vol = sp.vol * sp.f_dry;
-            double new_vol = dry_vol + water_vol;
-            sp.vol = new_vol;
-            sp.f_dry = dry_vol / new_vol;
+            sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
             // Add to crystal vector
             pop.crystal_sps.push_back(sp);
             // Remove from droplet vector
