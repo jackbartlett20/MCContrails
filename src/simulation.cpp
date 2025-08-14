@@ -79,6 +79,48 @@ void Simulation::read_simulation() {
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> rng_seed_read;
     file.close();
+
+    // Check valid
+    if (int_time <= 0) {
+        std::cerr << "Error: Read in integration time of " << int_time << "." << std::endl;
+        std::cerr << "Integration time must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (dt <= 0) {
+        std::cerr << "Error: Read in time step of " << dt << "." << std::endl;
+        std::cerr << "Time step must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (num_writes < 0) {
+        std::cerr << "Error: Read in " << num_writes << " writes." << std::endl;
+        std::cerr << "Number of writes must be >= 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (r_output_min <= 0) {
+        std::cerr << "Error: Read in smallest radius in output spectrum of " << r_output_min << "." << std::endl;
+        std::cerr << "Smallest radius in output spectrum must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (r_output_max <= r_output_min) {
+        std::cerr << "Error: Read in largest radius in output spectrum of " << r_output_max << "." << std::endl;
+        std::cerr << "Largest radius in output spectrum must be greater than smallest radius in output spectrum. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (num_r_intervals_output <= 0) {
+        std::cerr << "Error: Read in " << num_r_intervals_output << " intervals in output spectrum." << std::endl;
+        std::cerr << "Number of intervals in output spectrum must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (do_coagulation != 0 && do_coagulation != 1) {
+        std::cerr << "Error: Read in \"do coagulation?\" of" << do_coagulation << "." << std::endl;
+        std::cerr << "Enter 1 for coagulation, 0 for no coagulation. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (num_dt_for_coag < 0) {
+        std::cerr << "Error: Read in number of time steps for coagulation of " << num_dt_for_coag << "." << std::endl;
+        std::cerr << "Number of time steps for coagulation must be >= 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 // Updates volume of water in each droplet/crystal to reflect change in density
@@ -188,27 +230,10 @@ double Simulation::growth_rate_crystal(const double v) {
 // Raises error is volume is negative
 double Simulation::check_valid_vol(double vol, double dry_vol) {
     if (vol < dry_vol) {
-        std::cerr << "Found volume = " << vol/dry_vol << " * dry volume after growth." << std::endl;
+        //std::cerr << "Found volume = " << vol/dry_vol << " * dry volume after growth." << std::endl;
         vol = dry_vol;
     }
     return vol;
-}
-
-// Adjusts new f_dry within tolerance; raises error if invalid
-double Simulation::check_valid_f_dry(double f_dry) {
-    if (f_dry > 1 && f_dry < 1+pop.f_dry_tol) {
-        f_dry = 1;
-    }
-    else if (f_dry < 0 && f_dry > -pop.f_dry_tol) {
-        f_dry = 0;
-    }
-    // Check valid
-    if (f_dry < 0 || f_dry > 1) {
-        std::cerr << "Error: Found dry fraction of " << f_dry << " after growth." << std::endl;
-        std::cerr << "Try reducing dt. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    return f_dry;
 }
 
 // Coagulates the superparticles

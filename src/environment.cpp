@@ -40,6 +40,48 @@ void Environment::read_env() {
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> eps_diffusivity;
     file.close();
+
+    // Check valid
+    if (T_exhaust <= 0) {
+        std::cerr << "Error: Read in exhaust temperature of " << T_exhaust << "." << std::endl;
+        std::cerr << "Exhaust temperature must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (T_ambient <= 0) {
+        std::cerr << "Error: Read in ambient temperature of " << T_ambient << "." << std::endl;
+        std::cerr << "Ambient temperature must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (Pvap_exhaust < 0) {
+        std::cerr << "Error: Read in exhaust vapour pressure of " << Pvap_exhaust << "." << std::endl;
+        std::cerr << "Exhaust vapour pressure must be >= 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (Pvap_ambient < 0) {
+        std::cerr << "Error: Read in ambient vapour pressure of " << Pvap_ambient << "." << std::endl;
+        std::cerr << "Ambient vapour pressure must be >= 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (P_ambient <= 0) {
+        std::cerr << "Error: Read in ambient pressure of " << P_ambient << "." << std::endl;
+        std::cerr << "Ambient pressure must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (r_0 <= 0) {
+        std::cerr << "Error: Read in radius of jet exhaust of " << r_0 << "." << std::endl;
+        std::cerr << "Radius of jet exhaust must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (u_0 <= 0) {
+        std::cerr << "Error: Read in aircraft speed of " << u_0 << "." << std::endl;
+        std::cerr << "Aircraft speed must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (eps_diffusivity <= 0) {
+        std::cerr << "Error: Read in turbulent diffusivity of " << eps_diffusivity << "." << std::endl;
+        std::cerr << "Turbulent diffusivity must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 // Sets environmental variables according to current time
@@ -59,7 +101,6 @@ void Environment::set_env(const double current_time) {
     // However, it does decrease like temperature due to mixing
     Pvap += mixing_grad * (T_new - T);
     T = T_new;
-    //std::cout << "Pvap: " << Pvap << std::endl;
 
     // Buck equations
     Psat_l = 6.1121e2*std::exp((18.678 - (T-273.15)/234.5) * ((T-273.15)/(T-16.01)));
@@ -90,8 +131,6 @@ void Environment::set_env(const double current_time) {
     first_call = false;
     water_density = rho_w_liq(T, P_ambient);
     ice_density = rho_w_ice(T, P_ambient);
-    //std::cout << "water_density: " << water_density << std::endl;
-    //std::cout << "ice_density: " << ice_density << std::endl;
 
     // H2O molecular vol in liquid (m3)
     H2O_vol_liquid = H2O_MOLECULAR_MASS / water_density;

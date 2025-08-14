@@ -49,7 +49,6 @@ public:
     double n_tot;
     int max_sps;
     int num_r_choices;
-    double f_dry_tol;
     int sp_ID_count;
     std::vector<Superparticle> droplet_sps;
     std::vector<Superparticle> crystal_sps;

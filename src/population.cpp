@@ -60,9 +60,19 @@ void Population::read_population() {
     file >> max_sps;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> num_r_choices;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> f_dry_tol;
     file.close();
+
+    // Check valid
+    if (max_sps <= 0) {
+        std::cerr << "Error: Read in total number of superparticles of " << max_sps << "." << std::endl;
+        std::cerr << "Total number of superparticles must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (num_r_choices <= 0) {
+        std::cerr << "Error: Read in " << num_r_choices << " radii to choose from during initialisation." << std::endl;
+        std::cerr << "Number of radii to choose from must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 // Reads each species from input file
@@ -108,7 +118,7 @@ std::vector<Species> Population::read_species() {
             std::cerr << "Geometric mean radius must be > 0. Stopping." << std::endl;
             exit(EXIT_FAILURE);
         }
-        if (f_dry < 0 ||  f_dry > 1) {
+        if (f_dry < 0 || f_dry > 1) {
             std::cerr << "Error: Read in dry fraction of " << f_dry << "." << std::endl;
             std::cerr << "Dry fraction must be between 0 and 1. Stopping." << std::endl;
             exit(EXIT_FAILURE);
