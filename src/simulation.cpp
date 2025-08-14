@@ -39,7 +39,9 @@ void Simulation::run() {
         //std::cout << "Current time: " << current_time << std::endl;
         env.set_env(current_time);
         update_water_vol();
-        growth();
+        if (env.S_l >= min_S_l) {
+            growth();
+        }
         if (do_coagulation == 1) {
             if (current_time >= next_coag_time) {
                 coagulation();
@@ -72,6 +74,8 @@ void Simulation::read_simulation() {
     file >> r_output_max;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> num_r_intervals_output;
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    file >> min_S_l;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> do_coagulation;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -109,6 +113,11 @@ void Simulation::read_simulation() {
     if (num_r_intervals_output <= 0) {
         std::cerr << "Error: Read in " << num_r_intervals_output << " intervals in output spectrum." << std::endl;
         std::cerr << "Number of intervals in output spectrum must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (min_S_l < 0) {
+        std::cerr << "Error: Read in minimum saturation ratio of " << min_S_l << "." << std::endl;
+        std::cerr << "Minimum saturation ratio must be >= 0. Stopping." << std::endl;
         exit(EXIT_FAILURE);
     }
     if (do_coagulation != 0 && do_coagulation != 1) {
@@ -204,14 +213,7 @@ double Simulation::growth_rate_liquid(const double v, const double v_dry, const 
 
     double F_k = (env.l_v * env.water_density)/(k_air_mod * env.T) * (env.l_v*WATER_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.T) - 1);
 
-    // Determine growth rate; set to 0 if in highly volatile regime
-    double growth_rate;
-    if (raoult_term == 0 && env.S_l < kelvin_term) {
-        growth_rate = 0;
-    }
-    else {
-        growth_rate = (4*PI*r) * 1/(F_d + F_k) * (env.S_l - S_droplet);
-    }
+    double growth_rate = (4*PI*r) * 1/(F_d + F_k) * (env.S_l - S_droplet);
     return growth_rate;
 }
 

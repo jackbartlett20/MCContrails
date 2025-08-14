@@ -18,6 +18,7 @@ private:
     double r_output_min;
     double r_output_max;
     int num_r_intervals_output;
+    double min_S_l;
     int do_coagulation;
     int num_dt_for_coag;
     unsigned long long rng_seed_read;
