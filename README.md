@@ -17,7 +17,7 @@ The code is compiled with `make` in the main directory. This creates the file `M
 
 ## Executing
 
-Simulation settings, initial particle properties, and environmental conditions should be input by editing the files `simulation.in`, `population.in`, `species.in`, and `environment.in`.
+Simulation settings, initial particle properties, and environmental conditions should be input by editing the files `simulation.in`, `species.in`, and `environment.in`.
 
 The program is executed with `./MCContrails`.
 

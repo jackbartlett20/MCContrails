@@ -18,6 +18,8 @@ private:
     double r_output_min;
     double r_output_max;
     int num_r_intervals_output;
+    int max_sps;
+    int num_r_choices;
     double min_S_l;
     int do_coagulation;
     int num_dt_for_coag;

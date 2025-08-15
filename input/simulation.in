@@ -4,7 +4,9 @@
 1e-9                          // Smallest radius in output spectrum (m) -> r_output_min
 1e-6                          // Largest radius in output spectrum (m) -> r_output_max
 200                           // Number of radius intervals in output spectrum -> num_r_intervals_output
+1010                          // Total number of superparticles -> max_sps
+1000                          // Number of radii to be randomly chosen from in initialisation -> num_r_choices
 0.01                          // Minimum saturation ratio of liquid water to do growth -> min_S_l
 1                             // Do coagulation? (on/off) -> do_coagulation
-1000                          // Calculate coagulation once every n time steps (choose 1 to calculate every time step; higher is better for performance) -> num_dt_for_coag
+2000                          // Calculate coagulation once every n time steps (choose 1 to calculate every time step; higher is better for performance) -> num_dt_for_coag
 0                             // Seed for random number generator (use 0 for random seed) -> rng_seed_read

@@ -10,8 +10,9 @@
 #include "general.h"
 #include "constants.h"
 
-void Population::assign() {
-    read_population();
+void Population::assign(int max_sps, int num_r_choices) {
+    this->max_sps = max_sps;
+    this->num_r_choices = num_r_choices;
 
     // Read species
     std::vector<Species> species_vec = read_species();
@@ -48,31 +49,6 @@ void Population::assign() {
     }
     // Determine num_sps
     update_num_sps();
-}
-
-// Reads input file with variables relevant to Population
-void Population::read_population() {
-    std::ifstream file("input/population.in");
-    if (!file.is_open()) {
-        std::cerr << "Error opening population.in" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    file >> max_sps;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> num_r_choices;
-    file.close();
-
-    // Check valid
-    if (max_sps <= 0) {
-        std::cerr << "Error: Read in total number of superparticles of " << max_sps << "." << std::endl;
-        std::cerr << "Total number of superparticles must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (num_r_choices <= 0) {
-        std::cerr << "Error: Read in " << num_r_choices << " radii to choose from during initialisation." << std::endl;
-        std::cerr << "Number of radii to choose from must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
 }
 
 // Reads each species from input file

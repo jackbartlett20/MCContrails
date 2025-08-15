@@ -53,12 +53,11 @@ public:
     std::vector<Superparticle> droplet_sps;
     std::vector<Superparticle> crystal_sps;
 
-    void assign();
+    void assign(int max_sps, int num_r_choices);
     void update_n_tot();
     void update_num_sps();
 
 private:
-    void read_population();
     std::vector<Species> read_species();
     std::vector<double> choose_vs(int sps_for_species, std::vector<double> logr_range, std::vector<double> weights);
 };

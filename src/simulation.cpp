@@ -29,7 +29,7 @@ void Simulation::run() {
     next_coag_time = coag_interval;
     prepare_output();
     
-    pop.assign(); // Called after rng set
+    pop.assign(max_sps, num_r_choices); // Called after rng set
     
     std::cout << "Starting simulation." << std::endl;
     
@@ -75,6 +75,10 @@ void Simulation::read_simulation() {
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> num_r_intervals_output;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    file >> max_sps;
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    file >> num_r_choices;
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> min_S_l;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     file >> do_coagulation;
@@ -113,6 +117,16 @@ void Simulation::read_simulation() {
     if (num_r_intervals_output <= 0) {
         std::cerr << "Error: Read in " << num_r_intervals_output << " intervals in output spectrum." << std::endl;
         std::cerr << "Number of intervals in output spectrum must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (max_sps <= 0) {
+        std::cerr << "Error: Read in total number of superparticles of " << max_sps << "." << std::endl;
+        std::cerr << "Total number of superparticles must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (num_r_choices <= 0) {
+        std::cerr << "Error: Read in " << num_r_choices << " radii to choose from during initialisation." << std::endl;
+        std::cerr << "Number of radii to choose from must be > 0. Stopping." << std::endl;
         exit(EXIT_FAILURE);
     }
     if (min_S_l < 0) {
