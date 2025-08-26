@@ -144,7 +144,7 @@ void Environment::set_env(const double current_time) {
     // H2O molar volume in ice (m3 mol-1)
     ice_molar_vol = H2O_vol_ice * AVOGADRO_CONSTANT;
 
-    // Water surface tension (N m-1) - IAPWS
+    // Water surface tension (N m-1) - IAPWS R1-76(2014)
     sigma_water = 235.8e-3 * std::pow(1-T/647.096, 1.256) * (1 - 0.625*(1-T/647.096));
 
     // Ice surface tension (N m-1) - Pruppacher and Klett

@@ -48,7 +48,9 @@ void Simulation::run() {
                 next_coag_time += coag_interval;
             }
         }
-        freezing();
+        if (env.T < 273.15) {
+            freezing();
+        }
         if (current_time >= next_write_time) {
             output();
             next_write_time += write_interval;
@@ -463,12 +465,28 @@ SPTemp Simulation::new_props(Superparticle sp_i, Superparticle sp_j) {
 
 // Updates number of ice germs in droplets and freezes if >1
 void Simulation::freezing() {
-    // Number of ice germs formed per droplet vol per second
-    double ice_germ_rate = 1e6 * std::exp(-3.5714 * env.T + 858.719);
-    // Update number of ice germs
+    // Update number of ice germs using Koop et al. 2000
+    double u_w_i_minus_u_w_0 = 210368. + 131.438 * env.T - 3.32373e6/env.T - 41729.1 * std::log(env.T);
+    double a_w_i = std::exp(u_w_i_minus_u_w_0/(IDEAL_GAS_CONSTANT * env.T));
+    double v_w_0 = -230.76 - 0.1478 * env.T + 4099.2/env.T + 48.8341 * std::log(env.T);
+    double v_i_0 = 19.43 - 2.2e-3 * env.T + 1.08e-5 * std::pow(env.T, 2);
     #pragma omp parallel for
     for (Superparticle& sp : pop.droplet_sps) {
-        sp.ice_germs += ice_germ_rate * (sp.vol - sp.dry_vol) * dt;
+        //sp.ice_germs += ice_germ_rate * (sp.vol - sp.dry_vol) * dt;
+        double r = std::pow(3*sp.vol/(4*PI), 1./3.);
+        double P_droplet = (env.P_ambient + (2*env.sigma_water/r)) / 1e9; // GPa
+        double a_w = (sp.vol - sp.dry_vol)/(sp.vol - (1-sp.kappa)*sp.dry_vol);
+        double v_w_minus_v_i = v_w_0 * (P_droplet - 0.5 * 1.6 * std::pow(P_droplet, 2) - 1./6. * -8.8 * std::pow(P_droplet, 3)) 
+                               - v_i_0 * (P_droplet - 0.5 * 0.22 * std::pow(P_droplet, 2) - 1./6. * -0.17 * std::pow(P_droplet, 3));
+        double delta_a_w = a_w * std::exp(v_w_minus_v_i/(IDEAL_GAS_CONSTANT * env.T)) - a_w_i;
+        double J;
+        if (delta_a_w < 0.26 || delta_a_w > 0.34) {
+            J = 0;
+        }
+        else {
+            J = 1e6 * std::pow(10, (-906.7 + 8502 * delta_a_w - 26924. * std::pow(delta_a_w, 2) + 29180. * std::pow(delta_a_w, 3)));
+        }
+        sp.ice_germs += J * (sp.vol - sp.dry_vol) * dt;
     }
     // Remove if frozen (iterate backwards to allow erase to work)
     double dens_ratio = env.water_density/env.ice_density;

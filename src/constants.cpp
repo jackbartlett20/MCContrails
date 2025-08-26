@@ -1,7 +1,7 @@
 #include "constants.h"
 
 const double PI = 3.14159265358979323846264338;
-const double IDEAL_GAS_CONSTANT = 8.314e0; // (J mol-1 K-1)
+const double IDEAL_GAS_CONSTANT = 8.3145e0; // (J mol-1 K-1)
 const double BOLTZMANN_CONSTANT = 1.380649e-23; // (J K-1)
 const double WATER_MOLAR_MASS = 18.015268e-3; // (kg mol-1)
 const double AIR_MOLAR_MASS = 28.9e-3; // (kg mol-1)

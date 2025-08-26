@@ -1,7 +1,7 @@
 600                          // Exhaust temperature (K) -> T_exhaust
 215                          // Ambient temperature (K) -> T_ambient
 300                          // Exhaust vapour pressure (Pa) -> Pvap_exhaust
-5                            // Ambient vapour pressure (Pa) -> Pvap_ambient
+0.693                        // Ambient vapour pressure (Pa) -> Pvap_ambient
 2e4                          // Ambient air pressure (Pa) -> P_ambient
 0.5                          // Radius of aircraft exhaust (m) -> r_0
 250                          // Aircraft speed (m s-1) -> u_0
