@@ -12,7 +12,7 @@ MCContrails uses OpenMP for parallelisation of functions including growth and co
 
 ## Compiling
 
-The code is compiled with `make` in the main directory. This creates the file `MCContrails`. If recompiling, `make -B` is safest. The headers used for IAPWS formulations (see [Model physics](#model-physics)) require C++20.
+The code is compiled with `make` in the main directory. This creates the file `MCContrails`. If recompiling, `make -B` is safest. The headers used for IAPWS formulations (see [Model physics](#model-physics)) require C++20 or newer.
 
 
 ## Executing
@@ -56,9 +56,9 @@ Superparticles are initialised with equal fractions of the total number density.
 
 The seed for the random number generator can be set in `simulation.in`.
 
-Due to the volatility of growth rates in the early plume, it is likely that the dry volume fraction in an interval will try to go above 1 or below 0 at some point. For this reason, a tolerance on this property can be chosen where $1 < f_{dry} < 1 + \text{tolerance}$ results in $f_{dry} = 1$ and similarly for below 0. The tolerance should be as small as possible.
+Due to the volatility of droplet growth rate in the early plume, we add a minimum saturation ratio with respect to liquid water ($S_l$) for growth to occur. Growth will only be calculated when $S_l$ is larger than this value which can be set in `simulation.in` and should be as small as possible.
 
-Calculating coagulation is a computationally-intensive process. To improve performance, coagulation can be calculated only once in a set number of time steps as determined by a user input in `simulation.in`. The probability of coagulation is multiplied by this input, so accuracy is only minimally affected.
+Calculating coagulation is a computationally-intensive process. To improve performance, coagulation can be calculated only once in a set number of time steps as determined by a user input in `simulation.in`. The probability of coagulation is multiplied by this input.
 
 The number of superparticles decreases over time as coagulation occurs to ensure that all superparticles have equal number densities. This is a requirement for 1-to-1 coagulation and results in the program speeding up as it executes.
 

@@ -162,7 +162,7 @@ void Environment::set_env(const double current_time) {
     // Specific latent heat of vaporisation of water (J kg-1)
     l_v = 2.501e6 - 2.37e3 * (T - 273.15);
 
-    // H2O number concentration (m-3) - REMOVE WHEN CRYSTAL GROWTH UPDATED
+    // H2O number concentration (m-3) - for crystal growth; ideally not needed here
     n_sat = AVOGADRO_CONSTANT * Pvap / (IDEAL_GAS_CONSTANT * T);
 }
 
