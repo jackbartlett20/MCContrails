@@ -6,16 +6,17 @@
 #include <string>
 #include <sstream>
 #include <random>
+#include <yaml-cpp/yaml.h>
 #include "population.h"
 #include "general.h"
 #include "constants.h"
 
-void Population::assign(int max_sps, int num_r_choices) {
+void Population::assign(std::string input_path, int max_sps, int num_r_choices) {
     this->max_sps = max_sps;
     this->num_r_choices = num_r_choices;
 
     // Read species
-    std::vector<Species> species_vec = read_species();
+    std::vector<Species> species_vec = read_species(input_path);
     int num_species = species_vec.size();
     std::cout << "Number of species read: " << num_species << std::endl;
 
@@ -52,36 +53,18 @@ void Population::assign(int max_sps, int num_r_choices) {
 }
 
 // Reads each species from input file
-std::vector<Species> Population::read_species() {
+std::vector<Species> Population::read_species(std::string input_path) {
     std::vector<Species> species_vec;
 
-    std::ifstream file("input/species.in");
-    if (!file.is_open()) {
-        std::cerr << "Error opening psr.in" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    std::string line;
-    std::getline(file, line);
-    std::getline(file, line);
-    while (std::getline(file, line)) {
-        if (line=="END") {
-            break;
-        }
-        // Read each line segment into string
-        std::stringstream ss(line);
-        std::string n_str, GMR_str, GSD_str, f_dry_str, kappa_str;
-        std::getline(ss, n_str, ',');
-        std::getline(ss, GMR_str, ',');
-        std::getline(ss, GSD_str, ',');
-        std::getline(ss, f_dry_str, ',');
-        std::getline(ss, kappa_str, ',');
+    YAML::Node input_file = YAML::LoadFile(input_path);
 
-        // Convert strings to doubles
-        double n = std::stod(n_str);
-        double GMR = std::stod(GMR_str);
-        double GSD = std::stod(GSD_str);
-        double f_dry = std::stod(f_dry_str);
-        double kappa = std::stod(kappa_str);
+    // Iterate over species
+    for (const auto& speciesNode : input_file["species"]) {
+        double n     = speciesNode["n"].as<double>();
+        double GMR   = speciesNode["GMR"].as<double>();
+        double GSD   = speciesNode["GSD"].as<double>();
+        double f_dry = speciesNode["f_dry"].as<double>();
+        double kappa = speciesNode["kappa"].as<double>();
 
         // Check valid
         if (n < 0) {
@@ -107,7 +90,6 @@ std::vector<Species> Population::read_species() {
 
         species_vec.push_back(Species(n, GMR, GSD, f_dry, kappa));
     }
-    file.close();
     return species_vec;
 }
 

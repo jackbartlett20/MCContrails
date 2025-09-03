@@ -3,7 +3,6 @@
 
 class Environment {
 public:
-    // Variables
     double T;
     double Pvap;
     double T_exhaust;
@@ -38,15 +37,14 @@ public:
     double l_v;
     double n_sat;
 
-    Environment();
+    void initialise(std::string input_path);
 
     void set_env(const double current_time);
 
 private:
-    // Variables
     bool first_call = true;
     
-    void read_env();
+    void read_env(std::string input_path);
 
     double rho_w_liq(double T, double P);
 

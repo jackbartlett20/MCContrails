@@ -1,11 +1,13 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <cstdlib>
 #include <limits>
 #include <vector>
 #include <cmath>
 #include <atomic>
 #include <omp.h>
+#include <yaml-cpp/yaml.h>
 #include "simulation.h"
 #include "population.h"
 #include "environment.h"
@@ -13,9 +15,14 @@
 #include "constants.h"
 
 // Runs the simulation
-void Simulation::run() {
-    read_simulation();
+void Simulation::run(std::string input_path) {
+    read_simulation(input_path);
     set_rng(rng_seed_read);
+    
+    prepare_output();
+    env.initialise(input_path);
+    pop.assign(input_path, max_sps, num_r_choices); // Uses rng so must be after set_rng
+
     current_time = 0;
     if (num_writes > 0) {
         write_interval = int_time/num_writes;
@@ -27,9 +34,6 @@ void Simulation::run() {
     next_write_time = write_interval;
     coag_interval = num_dt_for_coag*dt;
     next_coag_time = coag_interval;
-    prepare_output();
-    
-    pop.assign(max_sps, num_r_choices); // Called after rng set
     
     std::cout << "Starting simulation." << std::endl;
     
@@ -59,36 +63,21 @@ void Simulation::run() {
 }
 
 // Reads input file with variables relevant to Simulation
-void Simulation::read_simulation() {
-    std::ifstream file("input/simulation.in");
-    if (!file.is_open()) {
-        std::cerr << "Error opening simulation.in" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    file >> int_time;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> dt;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> num_writes;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> r_output_min;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> r_output_max;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> num_r_intervals_output;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> max_sps;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> num_r_choices;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> min_S_l;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> do_coagulation;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> num_dt_for_coag;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> rng_seed_read;
-    file.close();
+void Simulation::read_simulation(std::string input_path) {
+    YAML::Node input_file = YAML::LoadFile(input_path);
+    
+    int_time               = input_file["simulation"]["int_time"].as<double>();
+    dt                     = input_file["simulation"]["dt"].as<double>();
+    num_writes             = input_file["simulation"]["num_writes"].as<int>();
+    r_output_min           = input_file["simulation"]["r_output_min"].as<double>();
+    r_output_max           = input_file["simulation"]["r_output_max"].as<double>();
+    num_r_intervals_output = input_file["simulation"]["num_r_intervals_output"].as<int>();
+    max_sps                = input_file["simulation"]["max_sps"].as<int>();
+    num_r_choices          = input_file["simulation"]["num_r_choices"].as<int>();
+    min_S_l                = input_file["simulation"]["min_S_l"].as<double>();
+    do_coagulation         = input_file["simulation"]["do_coagulation"].as<int>();
+    num_dt_for_coag        = input_file["simulation"]["num_dt_for_coag"].as<int>();
+    rng_seed_read          = input_file["simulation"]["rng_seed"].as<unsigned long long>();
 
     // Check valid
     if (int_time <= 0) {
@@ -525,6 +514,14 @@ void Simulation::prepare_output() {
     // Calculate dlogr
     // Since r_output is linear in logspace, all dlogr are the same
     dlogr_output = std::log(r_output.at(1)) - std::log(r_output.at(0));
+
+    // Create output directory if needed
+    std::filesystem::path outputDir = "./output";
+    if (!std::filesystem::exists(outputDir)) {
+        if (std::filesystem::create_directories(outputDir)) {
+                std::cout << "Created output directory." << std::endl;
+        }
+    }
 }
 
 // Outputs PSDs and environmental variables to relevant files
@@ -565,7 +562,7 @@ void Simulation::output() {
         dndlogr_crystal_output.at(i) = n_crystal_output.at(i) / dlogr_output;
     }
 
-    std::ofstream file; // Variable used for all outputs
+    std::ofstream file; // Variable used for both outputs
 
     // Write PSDs
     if (first_write == true) {

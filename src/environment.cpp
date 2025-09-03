@@ -3,13 +3,14 @@
 #include <cstdlib>
 #include <limits>
 #include <cmath>
+#include <yaml-cpp/yaml.h>
 #include <calculisto/iapws/r6_inverse.hpp>
 #include <calculisto/iapws/r10.hpp>
 #include "environment.h"
 #include "constants.h"
 
-Environment::Environment() {
-    read_env();
+void Environment::initialise(std::string input_path) {
+    read_env(input_path);
     T = T_exhaust;
     Pvap = Pvap_exhaust;
     double x_m = r_0 * std::sqrt(2/eps_diffusivity);
@@ -18,28 +19,17 @@ Environment::Environment() {
 }
 
 // Reads input file with variables relevant to Environment
-void Environment::read_env() {
-    std::ifstream file("input/environment.in");
-    if (!file.is_open()) {
-        std::cerr << "Error opening environment.in" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    file >> T_exhaust;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> T_ambient;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> Pvap_exhaust;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> Pvap_ambient;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> P_ambient;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> r_0;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> u_0;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    file >> eps_diffusivity;
-    file.close();
+void Environment::read_env(std::string input_path) {
+    YAML::Node input_file = YAML::LoadFile(input_path);
+    
+    T_exhaust       = input_file["environment"]["T_exhaust"].as<double>();
+    T_ambient       = input_file["environment"]["T_ambient"].as<double>();
+    Pvap_exhaust    = input_file["environment"]["Pvap_exhaust"].as<double>();
+    Pvap_ambient    = input_file["environment"]["Pvap_ambient"].as<double>();
+    P_ambient       = input_file["environment"]["P_ambient"].as<double>();
+    r_0             = input_file["environment"]["r_0"].as<double>();
+    u_0             = input_file["environment"]["u_0"].as<double>();
+    eps_diffusivity = input_file["environment"]["eps_diffusivity"].as<double>();
 
     // Check valid
     if (T_exhaust <= 0) {

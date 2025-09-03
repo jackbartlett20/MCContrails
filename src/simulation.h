@@ -8,10 +8,9 @@
 class Simulation {
 public:
 
-    void run();
+    void run(std::string input_path);
 
 private:
-    // Variables
     double int_time;
     double dt;
     int num_writes;
@@ -40,7 +39,7 @@ private:
     double dlogr_output;
     bool first_write;
 
-    void read_simulation();
+    void read_simulation(std::string input_path);
 
     void update_water_vol();
 

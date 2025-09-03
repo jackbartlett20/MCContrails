@@ -1,4 +1,2 @@
 .vscode
-obj/
-output/
-MCContrails
+build

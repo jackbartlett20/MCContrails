@@ -5,7 +5,6 @@
 
 class Species {
 public:
-    // Variables
     double n;
     double GMR;
     double GSD;
@@ -17,7 +16,6 @@ public:
 
 class Superparticle {
 public:
-    // Variables
     int ID;
     double n;
     double vol;
@@ -32,7 +30,6 @@ public:
 // Used in coagulation to temporarily store the doubles for new superparticles
 class SPTemp {
 public:
-    // Variables
     double n;
     double vol;
     double dry_vol;
@@ -44,7 +41,6 @@ public:
 
 class Population {
 public:
-    // Variables
     int num_sps;
     double n_tot;
     int max_sps;
@@ -53,12 +49,12 @@ public:
     std::vector<Superparticle> droplet_sps;
     std::vector<Superparticle> crystal_sps;
 
-    void assign(int max_sps, int num_r_choices);
+    void assign(std::string input_path, int max_sps, int num_r_choices);
     void update_n_tot();
     void update_num_sps();
 
 private:
-    std::vector<Species> read_species();
+    std::vector<Species> read_species(std::string input_path);
     std::vector<double> choose_vs(int sps_for_species, std::vector<double> logr_range, std::vector<double> weights);
 };
 

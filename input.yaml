@@ -1,0 +1,69 @@
+# MCContrails input variables
+
+# Simulation
+simulation:
+  # Integration time (s)
+  int_time: 1e0
+  # Time step (s)
+  dt: 1e-6
+  # Number of outputs, equally spaced during integration time
+  num_writes: 1000
+  # Smallest radius in output spectrum (m)
+  r_output_min: 1e-9
+  # Largest radius in output spectrum (m)
+  r_output_max: 1e-6
+  # Number of radius intervals in output spectrum
+  num_r_intervals_output: 200
+  # Total number of superparticles
+  max_sps: 1010
+  # Number of radii to be randomly chosen from in initialisation
+  num_r_choices: 1000
+  # Minimum saturation ratio of liquid water to do growth
+  min_S_l: 0.01
+  # Do coagulation? (on=1/off=0)
+  do_coagulation: 1
+  # Calculate coagulation once every n time steps (choose 1 to calculate every time step; higher is better for performance)
+  num_dt_for_coag: 200
+  # Seed for random number generator (use 0 for random seed)
+  rng_seed: 0
+
+# Environment
+environment:
+  # Exhaust temperature (K)
+  T_exhaust: 600
+  # Ambient temperature (K)
+  T_ambient: 215
+  # Exhaust vapour pressure (Pa)
+  Pvap_exhaust: 300
+  # Ambient vapour pressure (Pa)
+  Pvap_ambient: 2.080
+  # Ambient air pressure (Pa)
+  P_ambient: 2.5e4
+  # Radius of aircraft exhaust (m)
+  r_0: 0.5
+  # Aircraft speed (m s-1)
+  u_0: 250
+  # Turbulent diffusivity ()
+  eps_diffusivity: 2.85e-2
+
+# Species
+species:
+# Each species must be written as an item in the list
+# Each species must have the following properties:
+# n: Total number density of species (m-3)
+# GMR: geometric mean radius (m)
+# GSD: Geometric standard deviation of particle radius (no units)
+# f_dry: Fraction of particle volume that is not water
+# kappa: Hygroscopicity parameter; 1 for very hygroscopic, 0 for unhygroscopic
+  # nvPM
+  - n:     8e11
+    GMR:   17.5e-9
+    GSD:   2.0
+    f_dry: 1
+    kappa: 0.005
+  # vPM
+  - n:     8e13
+    GMR:   2e-9
+    GSD:   1.3
+    f_dry: 1
+    kappa: 0.5
