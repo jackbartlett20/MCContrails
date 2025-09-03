@@ -2,26 +2,38 @@
 
 **MCContrails** (Monte Carlo Contrails) is a stochastic 0D population balance model for contrails. It represents the particle population with a set of *superparticles* and solves droplet growth, freezing, ice crystal growth, and coagulation.
 
+There is currently no license while I work out which one to use.
+
 
 ## Dependencies
 
 - OpenMP
+- [yaml-cpp](https://github.com/jbeder/yaml-cpp)
 
 MCContrails uses OpenMP for parallelisation of functions including growth and coagulation. Ensure `OMP_NUM_THREADS` is correctly set.
 
 
 ## Compiling
 
-The code is compiled with `make` in the main directory. This creates the file `MCContrails`. If recompiling, `make -B` is safest. The headers used for IAPWS formulations (see [Model physics](#model-physics)) require C++20 or newer.
+The program is compiled from the top directory (`MCContrails`) with the following instructions:
+```
+cmake -S . -B build
+cmake --build build
+```
+This creates the file `MCContrails` in the `build` directory. The headers used for IAPWS formulations (see [Model physics](#model-physics)) require C++20 or newer.
+
+The following options can be added to the first `cmake` command if required:
+- `-DCMAKE_PREFIX_PATH=/path/to/libraries`
+- `-DCMAKE_BUILD_TYPE=Debug`
 
 
 ## Executing
 
-Simulation settings, initial particle properties, and environmental conditions should be input by editing the files `simulation.in`, `species.in`, and `environment.in`.
+Simulation settings, initial particle properties, and environmental conditions should be input by editing file `input.yaml`.
 
-The program is executed with `./MCContrails`.
+The program is executed with `./MCContrails` from the `build` directory. This reads in the input file at `../input.yaml` by default. The program will accept an alternative input file by running `./MCContrails /path/to/input.yaml`.
 
-Output is in the output directory. The columns of the particle size distribution (`psd.out`) are:
+Outputs are written to `/build/output/`. The columns of the particle size distribution (`psd.out`) are:
 1. Time (s)
 2. Particle radius at centre of interval (m)
 3. Droplet number density $n$ (m-3)
