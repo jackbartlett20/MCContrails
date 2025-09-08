@@ -24,7 +24,11 @@ int main(int argc, char* argv[]) {
     std::cout << "Using input file: " << input_path << std::endl;
 
     // Check thread count
-    int num_threads = omp_get_num_threads();
+    int num_threads = 0;
+    #pragma omp parallel
+    {
+        num_threads = omp_get_num_threads();
+    }
     std::cout << "Number of threads: " << num_threads << std::endl;
     if (num_threads == 0) {
         std::cerr << "Ensure OMP_NUM_THREADS is set correctly in environment. Stopping." << std::endl;
