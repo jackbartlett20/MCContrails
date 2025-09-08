@@ -13,6 +13,8 @@ std::vector<double> normal_dist(std::vector<double> x, double x_mean, double sig
 double r_to_v(double r);
 double v_to_r(double v);
 
+extern std::uniform_real_distribution<double> coag_dist;
+
 void set_rng(unsigned long long rng_seed_read);
 
 std::mt19937_64& global_rng();

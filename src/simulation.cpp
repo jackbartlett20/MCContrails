@@ -263,9 +263,6 @@ void Simulation::coagulation() {
     std::vector<SPTemp> new_droplet_props;
     std::vector<SPTemp> new_crystal_props;
 
-    // Distribution for choosing random numbers in {0, 1}
-    std::uniform_real_distribution<double> distribution(0.0, 1.0);
-
     // Constant part of probability expression
     // Assumes all superparticles have same number density
     // Which they should for 1-to-1 coagulation
@@ -274,7 +271,7 @@ void Simulation::coagulation() {
     // Droplets with droplets
     // Parallelise outer for loop
     #pragma omp parallel for schedule(dynamic) default(none) \
-            shared(num_droplet_sps, distribution, const_fac, pop, droplet_sps_coag_flag, new_droplet_props)
+            shared(num_droplet_sps, coag_dist, const_fac, pop, droplet_sps_coag_flag, new_droplet_props)
     for (int i = 0; i < num_droplet_sps-1; i++) {
         // Ignore if i has already coagulated
         if (droplet_sps_coag_flag[i].load()) {
@@ -288,7 +285,7 @@ void Simulation::coagulation() {
             const Superparticle& sp_i = pop.droplet_sps.at(i);
             const Superparticle& sp_j = pop.droplet_sps.at(j);
             double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
-            double random_number = distribution(global_rng());
+            double random_number = coag_dist(global_rng());
             // P_ij = beta_ij * const_fac;
             if (random_number < beta_ij * const_fac) {
                 // Coagulation occurs
@@ -308,7 +305,7 @@ void Simulation::coagulation() {
     // Crystals with crystals
     // Parallelise outer for loop
     #pragma omp parallel for schedule(dynamic) default(none) \
-            shared(num_crystal_sps, distribution, const_fac, pop, crystal_sps_coag_flag, new_crystal_props)
+            shared(num_crystal_sps, coag_dist, const_fac, pop, crystal_sps_coag_flag, new_crystal_props)
     for (int i = 0; i < num_crystal_sps-1; i++) {
         // Ignore if i has already coagulated
         if (crystal_sps_coag_flag[i].load()) {
@@ -322,7 +319,7 @@ void Simulation::coagulation() {
             const Superparticle& sp_i = pop.crystal_sps.at(i);
             const Superparticle& sp_j = pop.crystal_sps.at(j);
             double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
-            double random_number = distribution(global_rng());
+            double random_number = coag_dist(global_rng());
             // P_ij = beta_ij * const_fac;
             if (random_number < beta_ij * const_fac) {
                 // Coagulation occurs
@@ -342,7 +339,7 @@ void Simulation::coagulation() {
     // Droplets with crystals
     // Parallelise outer for loop
     #pragma omp parallel for schedule(dynamic) default(none) \
-            shared(num_droplet_sps, num_crystal_sps, distribution, const_fac, pop,\
+            shared(num_droplet_sps, num_crystal_sps, coag_dist, const_fac, pop,\
                    droplet_sps_coag_flag, crystal_sps_coag_flag, new_droplet_props, new_crystal_props)
     for (int i = 0; i < num_droplet_sps; i++) {
         // Ignore if i has already coagulated
@@ -357,7 +354,7 @@ void Simulation::coagulation() {
             const Superparticle& sp_i = pop.droplet_sps.at(i);
             const Superparticle& sp_j = pop.crystal_sps.at(j);
             double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
-            double random_number = distribution(global_rng());
+            double random_number = coag_dist(global_rng());
             // P_ij = beta_ij * const_fac;
             if (random_number < beta_ij * const_fac) {
                 // Coagulation occurs
