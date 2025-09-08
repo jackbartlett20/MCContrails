@@ -189,7 +189,7 @@ void Simulation::growth() {
 
 // Calculates growth rate for droplets (m3 s-1)
 double Simulation::growth_rate_liquid(const double v, const double v_dry, const double kappa) {
-    const double r = std::pow(3*v/(4*PI), 1./3.);
+    const double r = v_to_r(v);
     const double f_dry = v_dry/v;
     const double accom_coeff = 1;
 
@@ -226,7 +226,7 @@ double Simulation::growth_rate_liquid(const double v, const double v_dry, const 
 
 // Calculates growth rate for crystals (m3 s-1)
 double Simulation::growth_rate_crystal(const double v) {
-    const double r = std::pow(3*v/(4*PI), 1./3.);
+    const double r = v_to_r(v);
     const double accom_coeff = 1;
     // Only Kelvin term for crystals
     double S_crystal = std::exp((2*env.get_sigma_ice()*env.get_ice_molar_vol())/(IDEAL_GAS_CONSTANT*env.get_T()*r));
@@ -403,8 +403,8 @@ void Simulation::coagulation() {
 
 // Calculates the Brownian coagulation coefficient (m3 s-1) from Fuchs' interpolation formula (Seinfeld and Pandis Table 13.1)
 double Simulation::coag_coeff(double vi, double vj) {
-    const double ri = std::pow(3*vi/(4*PI), 1./3.);
-    const double rj = std::pow(3*vj/(4*PI), 1./3.);
+    const double ri = v_to_r(vi);
+    const double rj = v_to_r(vj);
     double Di = diffusivity(ri);
     double Dj = diffusivity(rj);
     double ci = thermal_speed(vi);
@@ -464,7 +464,7 @@ void Simulation::freezing() {
     #pragma omp parallel for
     for (Superparticle& sp : pop.droplet_sps) {
         //sp.ice_germs += ice_germ_rate * (sp.vol - sp.dry_vol) * dt;
-        double r = std::pow(3*sp.vol/(4*PI), 1./3.);
+        double r = v_to_r(sp.vol);
         double P_droplet = (env.get_P_ambient() + (2*env.get_sigma_water()/r)) / 1e9; // GPa
         double a_w = (sp.vol - sp.dry_vol)/(sp.vol - (1-sp.kappa)*sp.dry_vol);
         double v_w_minus_v_i = v_w_0 * (P_droplet - 0.5 * 1.6 * std::pow(P_droplet, 2) - 1./6. * -8.8 * std::pow(P_droplet, 3)) 
@@ -543,7 +543,7 @@ void Simulation::output() {
 
     // Add distribution to n_droplet_output
     for (const Superparticle& sp : pop.droplet_sps) {
-        double r = std::pow(3*sp.vol/(4*PI), 1./3.);
+        double r = v_to_r(sp.vol);
         for (int i = 0; i < num_r_intervals_output; i++) {
             if (r >= r_output.at(i) && r < r_output.at(i+1)) {
                 n_droplet_output.at(i) += sp.n;
@@ -554,7 +554,7 @@ void Simulation::output() {
 
     // Add distribution to n_crystal_output
     for (const Superparticle& sp : pop.crystal_sps) {
-        double r = std::pow(3*sp.vol/(4*PI), 1./3.);
+        double r = v_to_r(sp.vol);
         for (int i = 0; i < num_r_intervals_output; i++) {
             if (r >= r_output.at(i) && r < r_output.at(i+1)) {
                 n_crystal_output.at(i) += sp.n;

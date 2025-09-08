@@ -38,6 +38,19 @@ std::vector<double> normal_dist(std::vector<double> x, double x_mean, double sig
     return normal;
 }
 
+const double four_thirds_pi = 4./3. * PI;
+const double one_third = 1./3.;
+
+// Returns volume if given radius
+double r_to_v(double r) {
+    return four_thirds_pi * std::pow(r, 3.);
+}
+
+// Returns radius if given volume
+double v_to_r(double v) {
+    return std::pow(v/four_thirds_pi, one_third);
+}
+
 unsigned long long rng_seed;
 
 // Sets the seed for the global random number generator

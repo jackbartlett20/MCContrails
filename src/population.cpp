@@ -100,7 +100,7 @@ std::vector<double> Population::choose_vs(int num_sps_for_species, std::vector<d
     for (int i = 0; i < num_sps_for_species; i++) {
         int random_index = distribution(global_rng());
         double r = std::exp(logr_range.at(random_index));
-        vs.at(i) = 4*PI/3*std::pow(r, 3);
+        vs.at(i) = r_to_v(r);
     }
     return vs;
 }
