@@ -167,3 +167,8 @@ double Environment::rho_w_ice(double T, double P) {
     double rho = calculisto::iapws::r10::density_pt(P, T);
     return rho;
 }
+
+// Updates vapour pressure in Environment after growth
+void Environment::update_Pvap_after_growth(double delta_Pvap) {
+    Pvap += delta_Pvap;
+}

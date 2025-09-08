@@ -43,7 +43,7 @@ void Simulation::run(std::string input_path) {
         //std::cout << "Current time: " << current_time << std::endl;
         env.set_env(current_time);
         update_water_vol();
-        if (env.S_l >= min_S_l) {
+        if (env.get_S_l() >= min_S_l) {
             growth();
         }
         if (do_coagulation == 1) {
@@ -52,7 +52,7 @@ void Simulation::run(std::string input_path) {
                 next_coag_time += coag_interval;
             }
         }
-        if (env.T < 273.15) {
+        if (env.get_T() < 273.15) {
             freezing();
         }
         if (current_time >= next_write_time) {
@@ -141,14 +141,14 @@ void Simulation::read_simulation(std::string input_path) {
 void Simulation::update_water_vol() {
     double dens_ratio;
     // Droplets
-    dens_ratio = env.water_density_old / env.water_density;
+    dens_ratio = env.get_water_density_old() / env.get_water_density();
     #pragma omp parallel for
     for (Superparticle& sp : pop.droplet_sps) {
         sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
     }
 
     // Crystals
-    dens_ratio = env.ice_density_old / env.ice_density;
+    dens_ratio = env.get_ice_density_old() / env.get_ice_density();
     #pragma omp parallel for
     for (Superparticle& sp : pop.crystal_sps) {
         sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
@@ -182,7 +182,9 @@ void Simulation::growth() {
     }
 
     // Update vapour pressure
-    env.Pvap -= (BOLTZMANN_CONSTANT * env.T * (sum_gn_droplet/env.H2O_vol_liquid + sum_gn_crystal/env.H2O_vol_ice)) * dt;
+    double delta_Pvap = -(BOLTZMANN_CONSTANT * env.get_T() * (sum_gn_droplet/env.get_H2O_vol_liquid()
+                                                              + sum_gn_crystal/env.get_H2O_vol_ice())) * dt;
+    env.update_Pvap_after_growth(delta_Pvap);
 }
 
 // Calculates growth rate for droplets (m3 s-1)
@@ -199,26 +201,26 @@ double Simulation::growth_rate_liquid(const double v, const double v_dry, const 
         raoult_term = (1 - f_dry)/(1 - (1 - kappa)*f_dry);
     }
 
-    double kelvin_term = std::exp((2*env.sigma_water*env.water_molar_vol)/(IDEAL_GAS_CONSTANT*env.T*r));
+    double kelvin_term = std::exp((2*env.get_sigma_water()*env.get_water_molar_vol())/(IDEAL_GAS_CONSTANT*env.get_T()*r));
     if (std::isinf(kelvin_term)) {
         kelvin_term = std::numeric_limits<double>::max();
     }
 
     double S_droplet = raoult_term * kelvin_term;
 
-    double diffusivity_mod = env.diffusivity / (r/(r + 0.7*env.mfp_air)
-                                                + env.diffusivity/(r*accom_coeff) 
-                                                * std::sqrt(2*PI*WATER_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.T)));
+    double diffusivity_mod = env.get_diffusivity() / (r/(r + 0.7*env.get_mfp_air())
+                                                + env.get_diffusivity()/(r*accom_coeff) 
+                                                * std::sqrt(2*PI*WATER_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.get_T())));
 
-    double k_air_mod = env.k_air / (r/(r + 0.7*env.mfp_air)
-                                    + env.k_air/(r*accom_coeff*env.air_density*CP_AIR)
-                                    * std::sqrt(2*PI*AIR_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.T)));
+    double k_air_mod = env.get_k_air() / (r/(r + 0.7*env.get_mfp_air())
+                                    + env.get_k_air()/(r*accom_coeff*env.get_air_density()*CP_AIR)
+                                    * std::sqrt(2*PI*AIR_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.get_T())));
 
-    double F_d = (env.water_density * IDEAL_GAS_CONSTANT * env.T) / (env.Psat_l * diffusivity_mod * WATER_MOLAR_MASS);
+    double F_d = (env.get_water_density() * IDEAL_GAS_CONSTANT * env.get_T()) / (env.get_Psat_l() * diffusivity_mod * WATER_MOLAR_MASS);
 
-    double F_k = (env.l_v * env.water_density)/(k_air_mod * env.T) * (env.l_v*WATER_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.T) - 1);
+    double F_k = (env.get_l_v() * env.get_water_density())/(k_air_mod * env.get_T()) * (env.get_l_v()*WATER_MOLAR_MASS/(IDEAL_GAS_CONSTANT*env.get_T()) - 1);
 
-    double growth_rate = (4*PI*r) * 1/(F_d + F_k) * (env.S_l - S_droplet);
+    double growth_rate = (4*PI*r) * 1/(F_d + F_k) * (env.get_S_l() - S_droplet);
     return growth_rate;
 }
 
@@ -227,10 +229,10 @@ double Simulation::growth_rate_crystal(const double v) {
     const double r = std::pow(3*v/(4*PI), 1./3.);
     const double accom_coeff = 1;
     // Only Kelvin term for crystals
-    double S_crystal = std::exp((2*env.sigma_ice*env.ice_molar_vol)/(IDEAL_GAS_CONSTANT*env.T*r));
-    double correction_factor = 1 + accom_coeff * env.vapour_thermal_speed * r / (4 * env.diffusivity);
-    double J = (PI * std::pow(r,2) * accom_coeff * env.vapour_thermal_speed * env.n_sat) / correction_factor * (env.S_i - S_crystal);
-    double growth_rate = env.H2O_vol_ice * J;
+    double S_crystal = std::exp((2*env.get_sigma_ice()*env.get_ice_molar_vol())/(IDEAL_GAS_CONSTANT*env.get_T()*r));
+    double correction_factor = 1 + accom_coeff * env.get_vapour_thermal_speed() * r / (4 * env.get_diffusivity());
+    double J = (PI * std::pow(r,2) * accom_coeff * env.get_vapour_thermal_speed() * env.get_n_sat()) / correction_factor * (env.get_S_i() - S_crystal);
+    double growth_rate = env.get_H2O_vol_ice() * J;
     return growth_rate;
 }
 
@@ -417,20 +419,20 @@ double Simulation::coag_coeff(double vi, double vj) {
 // Calculates diffusivity (m2 s-1)
 double Simulation::diffusivity(double r) {
     double Cc = cscf(r);
-    double D = BOLTZMANN_CONSTANT * env.T * Cc / (6 * PI * env.air_viscosity * r);
+    double D = BOLTZMANN_CONSTANT * env.get_T() * Cc / (6 * PI * env.get_air_viscosity() * r);
     return D;
 }
 
 // Calculates Cunningham slip correction factor
 double Simulation::cscf(double r) {
-    double Kn = env.mfp_air / r;
+    double Kn = env.get_mfp_air() / r;
     double Cc = 1 + Kn * (1.257 + 0.4*std::exp(-1.1/Kn));
     return Cc;
 }
 
 // Calculates thermal speed of particles with volume v (m s-1); assumes same density as water
 double Simulation::thermal_speed(double v) {
-    double c = std::sqrt(8 * BOLTZMANN_CONSTANT * env.T / (PI * env.water_density * v));
+    double c = std::sqrt(8 * BOLTZMANN_CONSTANT * env.get_T() / (PI * env.get_water_density() * v));
     return c;
 }
 
@@ -455,19 +457,19 @@ SPTemp Simulation::new_props(Superparticle sp_i, Superparticle sp_j) {
 // Updates number of ice germs in droplets and freezes if >1
 void Simulation::freezing() {
     // Update number of ice germs using Koop et al. 2000
-    double u_w_i_minus_u_w_0 = 210368. + 131.438 * env.T - 3.32373e6/env.T - 41729.1 * std::log(env.T);
-    double a_w_i = std::exp(u_w_i_minus_u_w_0/(IDEAL_GAS_CONSTANT * env.T));
-    double v_w_0 = -230.76 - 0.1478 * env.T + 4099.2/env.T + 48.8341 * std::log(env.T);
-    double v_i_0 = 19.43 - 2.2e-3 * env.T + 1.08e-5 * std::pow(env.T, 2);
+    double u_w_i_minus_u_w_0 = 210368. + 131.438 * env.get_T() - 3.32373e6/env.get_T() - 41729.1 * std::log(env.get_T());
+    double a_w_i = std::exp(u_w_i_minus_u_w_0/(IDEAL_GAS_CONSTANT * env.get_T()));
+    double v_w_0 = -230.76 - 0.1478 * env.get_T() + 4099.2/env.get_T() + 48.8341 * std::log(env.get_T());
+    double v_i_0 = 19.43 - 2.2e-3 * env.get_T() + 1.08e-5 * std::pow(env.get_T(), 2);
     #pragma omp parallel for
     for (Superparticle& sp : pop.droplet_sps) {
         //sp.ice_germs += ice_germ_rate * (sp.vol - sp.dry_vol) * dt;
         double r = std::pow(3*sp.vol/(4*PI), 1./3.);
-        double P_droplet = (env.P_ambient + (2*env.sigma_water/r)) / 1e9; // GPa
+        double P_droplet = (env.get_P_ambient() + (2*env.get_sigma_water()/r)) / 1e9; // GPa
         double a_w = (sp.vol - sp.dry_vol)/(sp.vol - (1-sp.kappa)*sp.dry_vol);
         double v_w_minus_v_i = v_w_0 * (P_droplet - 0.5 * 1.6 * std::pow(P_droplet, 2) - 1./6. * -8.8 * std::pow(P_droplet, 3)) 
                                - v_i_0 * (P_droplet - 0.5 * 0.22 * std::pow(P_droplet, 2) - 1./6. * -0.17 * std::pow(P_droplet, 3));
-        double delta_a_w = a_w * std::exp(v_w_minus_v_i/(IDEAL_GAS_CONSTANT * env.T)) - a_w_i;
+        double delta_a_w = a_w * std::exp(v_w_minus_v_i/(IDEAL_GAS_CONSTANT * env.get_T())) - a_w_i;
         double J;
         if (delta_a_w < 0.26 || delta_a_w > 0.34) {
             J = 0;
@@ -478,7 +480,7 @@ void Simulation::freezing() {
         sp.ice_germs += J * (sp.vol - sp.dry_vol) * dt;
     }
     // Remove if frozen (iterate backwards to allow erase to work)
-    double dens_ratio = env.water_density/env.ice_density;
+    double dens_ratio = env.get_water_density()/env.get_ice_density();
     for (int i = pop.droplet_sps.size() - 1; i >= 0; i--) {
         Superparticle& sp = pop.droplet_sps.at(i);
         if (sp.ice_germs >= 1) {
@@ -521,7 +523,12 @@ void Simulation::prepare_output() {
         if (std::filesystem::create_directories(outputDir)) {
                 std::cout << "Created output directory." << std::endl;
         }
+        else {
+            std::cerr << "Failed to create output directory at '" << outputDir.string() << "'. Stopping." << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
+    std::cout << "Output will be written to '" << outputDir.string() << "'." << std::endl;
 }
 
 // Outputs PSDs and environmental variables to relevant files
@@ -577,7 +584,7 @@ void Simulation::output() {
     }
     for (int i = 0; i < num_r_intervals_output; i++) {
         file << current_time << ", " << r_m_output.at(i) << ", " << n_droplet_output.at(i) << ", " << dndlogr_droplet_output.at(i) << ", "
-        << n_crystal_output.at(i) << ", " << dndlogr_crystal_output.at(i) << std::endl;
+        << n_crystal_output.at(i) << ", " << dndlogr_crystal_output.at(i) << "\n";
     }
     file.close();
 
@@ -592,7 +599,7 @@ void Simulation::output() {
         std::cerr << "Error opening environment.out" << std::endl;
         exit(EXIT_FAILURE);
     }
-    file << current_time << ", " << env.T << ", " << env.Pvap << ", " << env.Psat_l << ", " << env.Psat_i << std::endl;
+    file << current_time << ", " << env.get_T() << ", " << env.get_Pvap() << ", " << env.get_Psat_l() << ", " << env.get_Psat_i() << "\n";
     file.close();
 
     first_write = false;
