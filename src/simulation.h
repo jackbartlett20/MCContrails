@@ -49,21 +49,21 @@ private:
 
     double growth_rate_crystal(const double v);
 
-    double check_valid_vol(double vol, double dry_vol);
+    double check_valid_vol(double vol, const double dry_vol);
 
     void coagulation();
 
-    double coag_coeff(double vi, double vj);
+    double coag_coeff(const Superparticle& sp_i, const Superparticle& sp_j);
 
-    double diffusivity(double r);
+    double diffusivity(const double r);
 
-    double cscf(double r);
+    double cscf(const double r);
 
-    double thermal_speed(double v);
+    double thermal_speed(const double v, const bool isFrozen);
 
-    double coag_g(double r, double D, double c);
+    double coag_g(const double r, const double D, const double c);
 
-    SPTemp new_props(Superparticle sp_i, Superparticle sp_j);
+    Superparticle make_new_sp(const Superparticle& sp_i, const Superparticle& sp_j);
 
     void freezing();
 

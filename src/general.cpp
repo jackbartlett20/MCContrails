@@ -53,7 +53,7 @@ double v_to_r(double v) {
 
 unsigned long long rng_seed;
 
-// Distribution for choosing random numbers in {0, 1}
+// Distribution for choosing random numbers in {0, 1}; used by Simulation::coagulation()
 std::uniform_real_distribution<double> coag_dist(0.0, 1.0);
 
 // Sets the seed for the global random number generator

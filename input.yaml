@@ -15,7 +15,7 @@ simulation:
   # Number of radius intervals in output spectrum
   num_r_intervals_output: 200
   # Total number of superparticles
-  max_sps: 1010
+  max_sps: 2020
   # Number of radii to be randomly chosen from in initialisation
   num_r_choices: 1000
   # Minimum saturation ratio of liquid water to do growth

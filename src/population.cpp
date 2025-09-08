@@ -45,7 +45,7 @@ void Population::assign(std::string input_path, int max_sps, int num_r_choices) 
         std::vector<double> weights = normal_dist(logr_vec, logr_mean, SD);
         std::vector<double> vs = choose_vs(num_sps_for_species, logr_vec, weights);
         for (int i = 0; i < num_sps_for_species; i++) {
-            droplet_sps.push_back(Superparticle(sp_ID_count++, n_per_sp, vs.at(i), vs.at(i)*species.f_dry, species.kappa, 0, false));
+            sps.push_back(Superparticle(sp_ID_count++, n_per_sp, vs.at(i), vs.at(i)*species.f_dry, species.kappa, 0, false));
         }
     }
     // Determine num_sps
@@ -108,10 +108,7 @@ std::vector<double> Population::choose_vs(int num_sps_for_species, std::vector<d
 // Sets n_tot inside Population
 void Population::update_n_tot() {
     double sum = 0;
-    for (Superparticle& sp : droplet_sps) {
-        sum += sp.n;
-    }
-    for (Superparticle& sp : crystal_sps) {
+    for (Superparticle& sp : sps) {
         sum += sp.n;
     }
     n_tot = sum;
@@ -119,7 +116,7 @@ void Population::update_n_tot() {
 
 // Sets num_sps inside Population
 void Population::update_num_sps() {
-    num_sps = droplet_sps.size() + crystal_sps.size();
+    num_sps = sps.size();
 }
 
 Species::Species(double n, double GMR, double GSD, double f_dry, double kappa) {
@@ -138,12 +135,4 @@ Superparticle::Superparticle(int ID, double n, double vol, double dry_vol, doubl
     this->kappa = kappa;
     this->ice_germs = ice_germs;
     this->isFrozen = isFrozen;
-}
-
-SPTemp::SPTemp(double n, double vol, double dry_vol, double kappa, double ice_germs) {
-    this->n = n;
-    this->vol = vol;
-    this->dry_vol = dry_vol;
-    this->kappa = kappa;
-    this->ice_germs = ice_germs;
 }

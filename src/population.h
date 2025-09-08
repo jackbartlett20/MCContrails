@@ -27,18 +27,6 @@ public:
     Superparticle(int ID, double n, double vol, double dry_vol, double kappa, double ice_germs, bool isFrozen);
 };
 
-// Used in coagulation to temporarily store the doubles for new superparticles
-class SPTemp {
-public:
-    double n;
-    double vol;
-    double dry_vol;
-    double kappa;
-    double ice_germs;
-
-    SPTemp(double n, double vol, double dry_vol, double kappa, double ice_germs);
-};
-
 class Population {
 public:
     int num_sps;
@@ -46,8 +34,7 @@ public:
     int max_sps;
     int num_r_choices;
     int sp_ID_count;
-    std::vector<Superparticle> droplet_sps;
-    std::vector<Superparticle> crystal_sps;
+    std::vector<Superparticle> sps;
 
     void assign(std::string input_path, int max_sps, int num_r_choices);
     void update_n_tot();

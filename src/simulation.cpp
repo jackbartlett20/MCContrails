@@ -139,44 +139,32 @@ void Simulation::read_simulation(std::string input_path) {
 
 // Updates volume of water in each droplet/crystal to reflect change in density
 void Simulation::update_water_vol() {
-    double dens_ratio;
-    // Droplets
-    dens_ratio = env.get_water_density_old() / env.get_water_density();
+    double water_dens_ratio = env.get_water_density_old() / env.get_water_density();
+    double ice_dens_ratio = env.get_ice_density_old() / env.get_ice_density();
     #pragma omp parallel for
-    for (Superparticle& sp : pop.droplet_sps) {
-        sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
-    }
-
-    // Crystals
-    dens_ratio = env.get_ice_density_old() / env.get_ice_density();
-    #pragma omp parallel for
-    for (Superparticle& sp : pop.crystal_sps) {
+    for (Superparticle& sp : pop.sps) {
+        double dens_ratio = sp.isFrozen ? ice_dens_ratio : water_dens_ratio;
         sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
     }
 }
 
 // Grows the superparticles
 void Simulation::growth() {
-    // Droplets
     double sum_gn_droplet = 0;
-    // Parallelise for loop
-    #pragma omp parallel for reduction(+:sum_gn_droplet)
-    for (Superparticle& sp : pop.droplet_sps) {
-        double growth_rate = growth_rate_liquid(sp.vol, sp.dry_vol, sp.kappa);
-        sp.vol += growth_rate * dt;
-        sum_gn_droplet += growth_rate * sp.n;
-        // Check volume
-        sp.vol = check_valid_vol(sp.vol, sp.dry_vol);
-    }
-
-    // Crystals
     double sum_gn_crystal = 0;
     // Parallelise for loop
-    #pragma omp parallel for reduction(+:sum_gn_crystal)
-    for (Superparticle& sp : pop.crystal_sps) {
-        double growth_rate = growth_rate_crystal(sp.vol);
+    #pragma omp parallel for reduction(+:sum_gn_droplet, sum_gn_crystal)
+    for (Superparticle& sp : pop.sps) {
+        double growth_rate;
+        if (sp.isFrozen) {
+            growth_rate = growth_rate_crystal(sp.vol);
+            sum_gn_crystal += growth_rate * sp.n;
+        }
+        else {
+            growth_rate = growth_rate_liquid(sp.vol, sp.dry_vol, sp.kappa);
+            sum_gn_droplet += growth_rate * sp.n;
+        }
         sp.vol += growth_rate * dt;
-        sum_gn_crystal += growth_rate * sp.n;
         // Check volume
         sp.vol = check_valid_vol(sp.vol, sp.dry_vol);
     }
@@ -237,7 +225,7 @@ double Simulation::growth_rate_crystal(const double v) {
 }
 
 // Raises error is volume is negative
-double Simulation::check_valid_vol(double vol, double dry_vol) {
+double Simulation::check_valid_vol(double vol, const double dry_vol) {
     if (vol < dry_vol) {
         //std::cerr << "Found volume = " << vol/dry_vol << " * dry volume after growth." << std::endl;
         vol = dry_vol;
@@ -247,21 +235,14 @@ double Simulation::check_valid_vol(double vol, double dry_vol) {
 
 // Coagulates the superparticles
 void Simulation::coagulation() {
-    int num_droplet_sps = pop.droplet_sps.size();
-    int num_crystal_sps = pop.crystal_sps.size();
-
+    int num_sps = pop.num_sps;
     // Initialise coagulation flag vectors (std::atomic<bool> ensures thread-safe updates)
-    std::vector<std::atomic<bool>> droplet_sps_coag_flag(num_droplet_sps);
-    for (int i = 0; i < num_droplet_sps; i++) {
-        droplet_sps_coag_flag[i].store(false);
-    }
-    std::vector<std::atomic<bool>> crystal_sps_coag_flag(num_crystal_sps);
-    for (int i = 0; i < num_crystal_sps; i++) {
-        crystal_sps_coag_flag[i].store(false);
+    std::vector<std::atomic<bool>> sps_coag_flag(pop.num_sps);
+    for (int i = 0; i < num_sps; i++) {
+        sps_coag_flag[i].store(false);
     }
     // Initialise empty vectors for created superparticles properties
-    std::vector<SPTemp> new_droplet_props;
-    std::vector<SPTemp> new_crystal_props;
+    std::vector<Superparticle> new_sps;
 
     // Constant part of probability expression
     // Assumes all superparticles have same number density
@@ -271,127 +252,54 @@ void Simulation::coagulation() {
     // Droplets with droplets
     // Parallelise outer for loop
     #pragma omp parallel for schedule(dynamic) default(none) \
-            shared(num_droplet_sps, coag_dist, const_fac, pop, droplet_sps_coag_flag, new_droplet_props)
-    for (int i = 0; i < num_droplet_sps-1; i++) {
+            shared(num_sps, coag_dist, const_fac, pop, sps_coag_flag, new_sps)
+    for (int i = 0; i < num_sps-1; i++) {
         // Ignore if i has already coagulated
-        if (droplet_sps_coag_flag[i].load()) {
+        if (sps_coag_flag[i].load()) {
             continue;
         }
-        for (int j = i+1; j < num_droplet_sps; j++) {
+        for (int j = i+1; j < num_sps; j++) {
             // Ignore if i or j have already coagulated
-            if (droplet_sps_coag_flag[i].load() || droplet_sps_coag_flag[j].load()) {
+            if (sps_coag_flag[i].load() || sps_coag_flag[j].load()) {
                 continue;
             }
-            const Superparticle& sp_i = pop.droplet_sps.at(i);
-            const Superparticle& sp_j = pop.droplet_sps.at(j);
-            double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
+            const Superparticle& sp_i = pop.sps.at(i);
+            const Superparticle& sp_j = pop.sps.at(j);
+            double beta_ij = coag_coeff(sp_i, sp_j);
             double random_number = coag_dist(global_rng());
             // P_ij = beta_ij * const_fac;
             if (random_number < beta_ij * const_fac) {
                 // Coagulation occurs
-                droplet_sps_coag_flag[i].store(true);
-                droplet_sps_coag_flag[j].store(true);
-                SPTemp props = new_props(sp_i, sp_j);
+                sps_coag_flag[i].store(true);
+                sps_coag_flag[j].store(true);
+                Superparticle new_sp = make_new_sp(sp_i, sp_j);
                 // Initialise a new droplet superparticle
                 #pragma omp critical
                 {
-                    new_droplet_props.push_back(props);
+                    new_sps.push_back(new_sp);
                 }
                 break;
             }
         }
     }
 
-    // Crystals with crystals
-    // Parallelise outer for loop
-    #pragma omp parallel for schedule(dynamic) default(none) \
-            shared(num_crystal_sps, coag_dist, const_fac, pop, crystal_sps_coag_flag, new_crystal_props)
-    for (int i = 0; i < num_crystal_sps-1; i++) {
-        // Ignore if i has already coagulated
-        if (crystal_sps_coag_flag[i].load()) {
-            continue;
+    // Remove coagulated superparticles
+    // Create a predicate to read the flags
+    auto flag_it = sps_coag_flag.begin();
+    auto flag_end = sps_coag_flag.end();
+    auto predicate = [&](Superparticle) {
+        if (flag_it == flag_end) {
+            return false;
         }
-        for (int j = i+1; j < num_crystal_sps; j++) {
-            // Ignore if i or j have already coagulated
-            if (crystal_sps_coag_flag[i].load() || crystal_sps_coag_flag[j].load()) {
-                continue;
-            }
-            const Superparticle& sp_i = pop.crystal_sps.at(i);
-            const Superparticle& sp_j = pop.crystal_sps.at(j);
-            double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
-            double random_number = coag_dist(global_rng());
-            // P_ij = beta_ij * const_fac;
-            if (random_number < beta_ij * const_fac) {
-                // Coagulation occurs
-                crystal_sps_coag_flag[i].store(true);
-                crystal_sps_coag_flag[j].store(true);
-                SPTemp props = new_props(sp_i, sp_j);
-                // Initialise a new crystal superparticle
-                #pragma omp critical
-                {
-                    new_crystal_props.push_back(props);
-                }
-                break;
-            }
-        }
-    }
+        // Returns the value at the position the iterator is pointing to
+        return (*flag_it++).load();
+    };
 
-    // Droplets with crystals
-    // Parallelise outer for loop
-    #pragma omp parallel for schedule(dynamic) default(none) \
-            shared(num_droplet_sps, num_crystal_sps, coag_dist, const_fac, pop,\
-                   droplet_sps_coag_flag, crystal_sps_coag_flag, new_droplet_props, new_crystal_props)
-    for (int i = 0; i < num_droplet_sps; i++) {
-        // Ignore if i has already coagulated
-        if (droplet_sps_coag_flag[i].load()) {
-            continue;
-        }
-        for (int j = 0; j < num_crystal_sps; j++) {
-            // Ignore if i or j have already coagulated
-            if (droplet_sps_coag_flag[i].load() || crystal_sps_coag_flag[j].load()) {
-                continue;
-            }
-            const Superparticle& sp_i = pop.droplet_sps.at(i);
-            const Superparticle& sp_j = pop.crystal_sps.at(j);
-            double beta_ij = coag_coeff(sp_i.vol, sp_j.vol);
-            double random_number = coag_dist(global_rng());
-            // P_ij = beta_ij * const_fac;
-            if (random_number < beta_ij * const_fac) {
-                // Coagulation occurs
-                droplet_sps_coag_flag[i].store(true);
-                crystal_sps_coag_flag[j].store(true);
-                SPTemp props = new_props(sp_i, sp_j);
-                // Assume resulting particles are frozen
-                // Initialise a new crystal superparticle
-                #pragma omp critical
-                {
-                    new_crystal_props.push_back(props);
-                }
-                break;
-            }
-        }
-    }
+    auto new_end = std::remove_if(pop.sps.begin(), pop.sps.end(), predicate);
+    pop.sps.erase(new_end, pop.sps.end());
 
-    // Remove coagulated droplet superparticles
-    for (int i = num_droplet_sps - 1; i >=0; i--) {
-        if (droplet_sps_coag_flag[i].load()) {
-            pop.droplet_sps.erase(pop.droplet_sps.begin() + i);
-        }
-    }
-    // Remove coagulated crystal superparticles
-    for (int i = num_crystal_sps - 1; i >=0; i--) {
-        if (crystal_sps_coag_flag[i].load()) {
-            pop.crystal_sps.erase(pop.crystal_sps.begin() + i);
-        }
-    }
-    // Add new droplet superparticles
-    for (const SPTemp& props : new_droplet_props) {
-        pop.droplet_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.dry_vol, props.kappa, props.ice_germs, false));
-    }
-    // Add new crystal superparticles
-    for (const SPTemp& props : new_crystal_props) {
-        pop.crystal_sps.push_back(Superparticle(pop.sp_ID_count++, props.n, props.vol, props.dry_vol, props.kappa, props.ice_germs, true));
-    }
+    // Add new superparticles
+    pop.sps.insert(pop.sps.end(), new_sps.begin(), new_sps.end());
 
     // Re-evaluate n_tot and num_sps
     pop.update_n_tot();
@@ -399,13 +307,15 @@ void Simulation::coagulation() {
 }
 
 // Calculates the Brownian coagulation coefficient (m3 s-1) from Fuchs' interpolation formula (Seinfeld and Pandis Table 13.1)
-double Simulation::coag_coeff(double vi, double vj) {
+double Simulation::coag_coeff(const Superparticle& sp_i, const Superparticle& sp_j) {
+    const double vi = sp_i.vol;
+    const double vj = sp_j.vol;
     const double ri = v_to_r(vi);
     const double rj = v_to_r(vj);
     double Di = diffusivity(ri);
     double Dj = diffusivity(rj);
-    double ci = thermal_speed(vi);
-    double cj = thermal_speed(vj);
+    double ci = thermal_speed(vi, sp_i.isFrozen);
+    double cj = thermal_speed(vj, sp_j.isFrozen);
     double gi = coag_g(ri, Di, ci);
     double gj = coag_g(rj, Dj, cj);
     double denom = ((ri + rj)/(ri + rj + std::sqrt(std::pow(gi, 2) + std::pow(gj, 2)))) + ((4*(Di + Dj))/(std::sqrt(std::pow(ci, 2) + std::pow(cj, 2)) * (ri + rj)));
@@ -414,27 +324,28 @@ double Simulation::coag_coeff(double vi, double vj) {
 }
 
 // Calculates diffusivity (m2 s-1)
-double Simulation::diffusivity(double r) {
+double Simulation::diffusivity(const double r) {
     double Cc = cscf(r);
     double D = BOLTZMANN_CONSTANT * env.get_T() * Cc / (6 * PI * env.get_air_viscosity() * r);
     return D;
 }
 
 // Calculates Cunningham slip correction factor
-double Simulation::cscf(double r) {
+double Simulation::cscf(const double r) {
     double Kn = env.get_mfp_air() / r;
     double Cc = 1 + Kn * (1.257 + 0.4*std::exp(-1.1/Kn));
     return Cc;
 }
 
-// Calculates thermal speed of particles with volume v (m s-1); assumes same density as water
-double Simulation::thermal_speed(double v) {
-    double c = std::sqrt(8 * BOLTZMANN_CONSTANT * env.get_T() / (PI * env.get_water_density() * v));
+// Calculates thermal speed of particles with volume v (m s-1); assumes density of pure water/ice
+double Simulation::thermal_speed(const double v, const bool isFrozen) {
+    double density = isFrozen ? env.get_ice_density() : env.get_water_density();
+    double c = std::sqrt(8 * BOLTZMANN_CONSTANT * env.get_T() / (PI * density * v));
     return c;
 }
 
 // Calculates g for Fuchs coagulation (see Seinfeld and Pandis Table 13.1)
-double Simulation::coag_g(double r, double D, double c) {
+double Simulation::coag_g(const double r, const double D, const double c) {
     double l = 8*D/(PI*c);
     double d = 2*r;
     double g = std::sqrt(2)/(3*d*l) * (std::pow(d + l, 3) - std::pow(std::pow(d, 2) + std::pow(l, 2), 1.5)) - d;
@@ -442,13 +353,19 @@ double Simulation::coag_g(double r, double D, double c) {
 }
 
 // Calculates the resulting particle properties from a coagulation and returns them in an SPTemp object
-SPTemp Simulation::new_props(Superparticle sp_i, Superparticle sp_j) {
+Superparticle Simulation::make_new_sp(const Superparticle& sp_i, const Superparticle& sp_j) {
+    int new_ID;
+    #pragma omp critical
+    {
+        new_ID = pop.sp_ID_count++;
+    }
     double new_n = std::min(sp_i.n, sp_j.n);
     double new_vol = sp_i.vol + sp_j.vol;
     double new_dry_vol = sp_i.dry_vol + sp_j.dry_vol;
     double new_kappa = (sp_i.vol*sp_i.kappa + sp_j.vol*sp_j.kappa)/new_vol;
     double new_ice_germs = sp_i.ice_germs + sp_j.ice_germs;
-    return SPTemp(new_n, new_vol, new_dry_vol, new_kappa, new_ice_germs);
+    bool isFrozen = (sp_i.isFrozen || sp_j.isFrozen);
+    return Superparticle(new_ID, new_n, new_vol, new_dry_vol, new_kappa, new_ice_germs, isFrozen);
 }
 
 // Updates number of ice germs in droplets and freezes if >1
@@ -459,35 +376,27 @@ void Simulation::freezing() {
     double v_w_0 = -230.76 - 0.1478 * env.get_T() + 4099.2/env.get_T() + 48.8341 * std::log(env.get_T());
     double v_i_0 = 19.43 - 2.2e-3 * env.get_T() + 1.08e-5 * std::pow(env.get_T(), 2);
     #pragma omp parallel for
-    for (Superparticle& sp : pop.droplet_sps) {
-        //sp.ice_germs += ice_germ_rate * (sp.vol - sp.dry_vol) * dt;
-        double r = v_to_r(sp.vol);
-        double P_droplet = (env.get_P_ambient() + (2*env.get_sigma_water()/r)) / 1e9; // GPa
-        double a_w = (sp.vol - sp.dry_vol)/(sp.vol - (1-sp.kappa)*sp.dry_vol);
-        double v_w_minus_v_i = v_w_0 * (P_droplet - 0.5 * 1.6 * std::pow(P_droplet, 2) - 1./6. * -8.8 * std::pow(P_droplet, 3)) 
-                               - v_i_0 * (P_droplet - 0.5 * 0.22 * std::pow(P_droplet, 2) - 1./6. * -0.17 * std::pow(P_droplet, 3));
-        double delta_a_w = a_w * std::exp(v_w_minus_v_i/(IDEAL_GAS_CONSTANT * env.get_T())) - a_w_i;
-        double J;
-        if (delta_a_w < 0.26 || delta_a_w > 0.34) {
-            J = 0;
-        }
-        else {
-            J = 1e6 * std::pow(10, (-906.7 + 8502 * delta_a_w - 26924. * std::pow(delta_a_w, 2) + 29180. * std::pow(delta_a_w, 3)));
-        }
-        sp.ice_germs += J * (sp.vol - sp.dry_vol) * dt;
-    }
-    // Remove if frozen (iterate backwards to allow erase to work)
-    double dens_ratio = env.get_water_density()/env.get_ice_density();
-    for (int i = pop.droplet_sps.size() - 1; i >= 0; i--) {
-        Superparticle& sp = pop.droplet_sps.at(i);
-        if (sp.ice_germs >= 1) {
-            // Update properties
-            sp.isFrozen = true;
-            sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
-            // Add to crystal vector
-            pop.crystal_sps.push_back(sp);
-            // Remove from droplet vector
-            pop.droplet_sps.erase(pop.droplet_sps.begin() + i);
+    for (Superparticle& sp : pop.sps) {
+        if (!sp.isFrozen) {
+            double r = v_to_r(sp.vol);
+            double P_droplet = (env.get_P_ambient() + (2*env.get_sigma_water()/r)) / 1e9; // GPa
+            double a_w = (sp.vol - sp.dry_vol)/(sp.vol - (1-sp.kappa)*sp.dry_vol);
+            double v_w_minus_v_i = v_w_0 * (P_droplet - 0.5 * 1.6 * std::pow(P_droplet, 2) - 1./6. * -8.8 * std::pow(P_droplet, 3)) 
+                                - v_i_0 * (P_droplet - 0.5 * 0.22 * std::pow(P_droplet, 2) - 1./6. * -0.17 * std::pow(P_droplet, 3));
+            double delta_a_w = a_w * std::exp(v_w_minus_v_i/(IDEAL_GAS_CONSTANT * env.get_T())) - a_w_i;
+            double J;
+            if (delta_a_w < 0.26 || delta_a_w > 0.34) {
+                J = 0;
+            }
+            else {
+                J = 1e6 * std::pow(10, (-906.7 + 8502 * delta_a_w - 26924. * std::pow(delta_a_w, 2) + 29180. * std::pow(delta_a_w, 3)));
+            }
+            sp.ice_germs += J * (sp.vol - sp.dry_vol) * dt;
+
+            // Freeze if number of ice germs >= 1
+            if (sp.ice_germs >= 1) {
+                sp.isFrozen = true;
+            }
         }
     }
 }
@@ -538,23 +447,17 @@ void Simulation::output() {
         dndlogr_crystal_output.at(i) = 0;
     }
 
-    // Add distribution to n_droplet_output
-    for (const Superparticle& sp : pop.droplet_sps) {
+    // Add distribution to n_droplet_output and n_crystal_output
+    for (const Superparticle& sp : pop.sps) {
         double r = v_to_r(sp.vol);
         for (int i = 0; i < num_r_intervals_output; i++) {
             if (r >= r_output.at(i) && r < r_output.at(i+1)) {
-                n_droplet_output.at(i) += sp.n;
-                break;
-            }
-        }
-    }
-
-    // Add distribution to n_crystal_output
-    for (const Superparticle& sp : pop.crystal_sps) {
-        double r = v_to_r(sp.vol);
-        for (int i = 0; i < num_r_intervals_output; i++) {
-            if (r >= r_output.at(i) && r < r_output.at(i+1)) {
-                n_crystal_output.at(i) += sp.n;
+                if (sp.isFrozen) {
+                    n_crystal_output.at(i) += sp.n;
+                }
+                else {
+                    n_droplet_output.at(i) += sp.n;
+                }
                 break;
             }
         }
