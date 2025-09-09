@@ -2,12 +2,18 @@
 #define SIMULATION
 
 #include <vector>
+#include <atomic>
 #include "environment.h"
 #include "population.h"
 
+// A pair of integers used in coagulation
+struct intPair {
+    int i;
+    int j;
+};
+
 class Simulation {
 public:
-
     void run(std::string input_path);
 
 private:
@@ -38,6 +44,8 @@ private:
     std::vector<double> dndlogr_crystal_output;
     double dlogr_output;
     bool first_write;
+    // Number of attempts to find uncoagulated superparticles
+    const int num_rand_attempts = 10;
 
     void read_simulation(std::string input_path);
 
@@ -52,6 +60,8 @@ private:
     double check_valid_vol(double vol, const double dry_vol);
 
     void coagulation();
+
+    intPair coag_rand_sps(std::uniform_int_distribution<>& sps_dist, std::vector<std::atomic<bool>>& sps_coag_flag);
 
     double coag_coeff(const Superparticle& sp_i, const Superparticle& sp_j);
 

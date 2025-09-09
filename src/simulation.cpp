@@ -235,50 +235,57 @@ double Simulation::check_valid_vol(double vol, const double dry_vol) {
 
 // Coagulates the superparticles
 void Simulation::coagulation() {
-    int num_sps = pop.num_sps;
+    const int num_sps = pop.num_sps;
     // Initialise coagulation flag vectors (std::atomic<bool> ensures thread-safe updates)
     std::vector<std::atomic<bool>> sps_coag_flag(pop.num_sps);
     for (int i = 0; i < num_sps; i++) {
         sps_coag_flag[i].store(false);
     }
-    // Initialise empty vectors for created superparticles properties
+    // Initialise empty vector for created superparticles
     std::vector<Superparticle> new_sps;
+    // Initialise a distribution for selecting from sps vector
+    std::uniform_int_distribution<> sps_dist(0, num_sps-1);
+    
+    // Total possible pairings
+    const int total_pairs = 0.5*num_sps*(num_sps-1);
+    // Number of pairings chosen
+    const int num_checks = num_sps;
+    const double prob_scaling = total_pairs/num_checks;
 
     // Constant part of probability expression
     // Assumes all superparticles have same number density
     // Which they should for 1-to-1 coagulation
-    const double const_fac = pop.n_tot/pop.num_sps * num_dt_for_coag*dt;
+    const double const_fac = pop.n_tot/pop.num_sps * num_dt_for_coag*dt * prob_scaling;
 
-    // Droplets with droplets
-    // Parallelise outer for loop
+    // Parallelise for loop
     #pragma omp parallel for schedule(dynamic) default(none) \
-            shared(num_sps, coag_dist, const_fac, pop, sps_coag_flag, new_sps)
-    for (int i = 0; i < num_sps-1; i++) {
-        // Ignore if i has already coagulated
-        if (sps_coag_flag[i].load()) {
+            shared(num_checks, sps_dist, coag_dist, const_fac, pop, sps_coag_flag, new_sps, std::cerr)
+    for (int n = 0; n < num_checks; n++) {
+        // Choose random pair of superparticles
+        intPair pair = coag_rand_sps(sps_dist, sps_coag_flag);
+        if (pair.i == -1 || pair.j == -1) {
+            // Couldn't find uncoagulated superparticles; give up
             continue;
         }
-        for (int j = i+1; j < num_sps; j++) {
-            // Ignore if i or j have already coagulated
-            if (sps_coag_flag[i].load() || sps_coag_flag[j].load()) {
-                continue;
+        const Superparticle& sp_i = pop.sps.at(pair.i);
+        const Superparticle& sp_j = pop.sps.at(pair.j);
+        double beta_ij = coag_coeff(sp_i, sp_j);
+        double random_number = coag_dist(global_rng());
+        double P_ij = beta_ij * const_fac;
+        if (P_ij >= 1) {
+            #pragma omp critical
+            {
+                std::cerr << "Found coagulation probability P_ij = " << P_ij << ". Reduce dt for accuracy." << std::endl;
             }
-            const Superparticle& sp_i = pop.sps.at(i);
-            const Superparticle& sp_j = pop.sps.at(j);
-            double beta_ij = coag_coeff(sp_i, sp_j);
-            double random_number = coag_dist(global_rng());
-            // P_ij = beta_ij * const_fac;
-            if (random_number < beta_ij * const_fac) {
-                // Coagulation occurs
-                sps_coag_flag[i].store(true);
-                sps_coag_flag[j].store(true);
-                Superparticle new_sp = make_new_sp(sp_i, sp_j);
-                // Initialise a new droplet superparticle
-                #pragma omp critical
-                {
-                    new_sps.push_back(new_sp);
-                }
-                break;
+        }
+        if (random_number < P_ij) {
+            // Coagulation occurs
+            sps_coag_flag[pair.i].store(true);
+            sps_coag_flag[pair.j].store(true);
+            Superparticle new_sp = make_new_sp(sp_i, sp_j);
+            #pragma omp critical
+            {
+                new_sps.push_back(new_sp);
             }
         }
     }
@@ -304,6 +311,26 @@ void Simulation::coagulation() {
     // Re-evaluate n_tot and num_sps
     pop.update_n_tot();
     pop.update_num_sps();
+}
+
+// Chooses a random pair of indices for coagulation
+intPair Simulation::coag_rand_sps(std::uniform_int_distribution<>& sps_dist, std::vector<std::atomic<bool>>& sps_coag_flag) {
+    intPair pair = {-1, -1};
+    for (int n = 0; n < num_rand_attempts; n++) {
+        int random_index = sps_dist(global_rng());
+        if (!sps_coag_flag[random_index].load()) {
+            pair.i = random_index;
+            break;
+        }
+    }
+    for (int n = 0; n < num_rand_attempts; n++) {
+        int random_index = sps_dist(global_rng());
+        if (!sps_coag_flag[random_index].load() && random_index != pair.i) {
+            pair.j = random_index;
+            break;
+        }
+    }
+    return pair;
 }
 
 // Calculates the Brownian coagulation coefficient (m3 s-1) from Fuchs' interpolation formula (Seinfeld and Pandis Table 13.1)
