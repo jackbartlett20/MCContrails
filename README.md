@@ -23,7 +23,7 @@ cmake --build build
 This creates the file `MCContrails` in the `build` directory. The headers used for IAPWS formulations (see [Model physics](#model-physics)) require C++20 or newer.
 
 The following options can be added to the first `cmake` command if required:
-- `-DCMAKE_PREFIX_PATH=/path/to/libraries`
+- `-DCMAKE_PREFIX_PATH=/path/to/libraries/include`
 - `-DCMAKE_BUILD_TYPE=Debug`
 
 
@@ -51,7 +51,7 @@ The columns of the environmental variables (`environment.out`) are:
 
 ## Model physics
 
-Plume dynamics currently follow [Kärcher et al. (2015)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2015JD023491). It can be amended in the `Environment` class as desired.
+Plume dynamics currently follows [Kärcher et al. (2015)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2015JD023491). It can be amended in the `Environment` class as desired.
 
 The droplet growth equation follows Pruppacher and Klett equation (12-28) and Seinfeld and Pandis equation (17.53).
 
@@ -66,11 +66,11 @@ Liquid water and ice densities are updated with temperature and pressure followi
 
 Superparticles are initialised with equal fractions of the total number density. Each input species creates a number of superparticles proportional to the number density of the input species. The superparticles are initialised with the properties of that species. Radii are randomly assigned to superparticles using a lognormal radius distribution as weights.
 
-The seed for the random number generator can be set in `simulation.in`.
+The seed for the random number generator can be set in `input.yaml`.
 
-Due to the volatility of droplet growth rate in the early plume, we add a minimum saturation ratio with respect to liquid water ($S_l$) for growth to occur. Growth will only be calculated when $S_l$ is larger than this value which can be set in `simulation.in` and should be as small as possible.
+Due to the volatility of droplet growth rate in the early plume, we add a minimum saturation ratio with respect to liquid water ($S_l$) for growth to occur. Growth will only be calculated when $S_l$ is larger than this value which can be set in `input.yaml` and should be as small as possible.
 
-Calculating coagulation is a computationally-intensive process. To improve performance, coagulation can be calculated only once in a set number of time steps as determined by a user input in `simulation.in`. The probability of coagulation is multiplied by this input.
+Calculating coagulation is a computationally-intensive process. Instead of checking every pair of superparticles, we use a random subset of pairs (equal to the number of superparticles) and scale the probability of coagulation accordingly. To improve performance, coagulation can be calculated only once in a set number of time steps as determined by the value in `input.yaml`. The probability of coagulation is multiplied by this input.
 
 The number of superparticles decreases over time as coagulation occurs to ensure that all superparticles have equal number densities. This is a requirement for 1-to-1 coagulation and results in the program speeding up as it executes.
 
