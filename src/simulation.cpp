@@ -247,7 +247,7 @@ void Simulation::coagulation() {
     std::uniform_int_distribution<> sps_dist(0, num_sps-1);
     
     // Total possible pairings
-    const int total_pairs = 0.5*num_sps*(num_sps-1);
+    const double total_pairs = 0.5*num_sps*(num_sps-1);
     // Number of pairings chosen
     const int num_checks = num_sps;
     const double prob_scaling = total_pairs/num_checks;
