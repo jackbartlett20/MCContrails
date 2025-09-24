@@ -3,6 +3,7 @@
 #include <cmath>
 #include <random>
 #include <chrono>
+#include <omp.h>
 #include "general.h"
 #include "constants.h"
 
@@ -38,17 +39,14 @@ std::vector<double> normal_dist(std::vector<double> x, double x_mean, double sig
     return normal;
 }
 
-const double four_thirds_pi = 4./3. * PI;
-const double one_third = 1./3.;
-
 // Returns volume if given radius
 double r_to_v(double r) {
-    return four_thirds_pi * std::pow(r, 3.);
+    return 4./3. * PI * std::pow(r, 3.);
 }
 
 // Returns radius if given volume
 double v_to_r(double v) {
-    return std::pow(v/four_thirds_pi, one_third);
+    return std::pow(v/(4./3. * PI), 1./3.);
 }
 
 unsigned long long rng_seed;
@@ -69,6 +67,11 @@ void set_rng(unsigned long long rng_seed_read) {
 
 // Returns a reference to the global random number generator; only initialised when this function is first called
 std::mt19937_64& global_rng() {
-    static std::mt19937_64 rng(rng_seed);
+    thread_local std::mt19937_64 rng;
+    thread_local bool isSeeded = false;
+    if (!isSeeded) {
+        rng.seed(rng_seed+omp_get_thread_num());
+        isSeeded = true;
+    }
     return rng;
 }

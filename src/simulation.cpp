@@ -244,7 +244,7 @@ void Simulation::coagulation() {
     // Initialise empty vector for created superparticles
     std::vector<Superparticle> new_sps;
     // Initialise a distribution for selecting from sps vector
-    std::uniform_int_distribution<> sps_dist(0, num_sps-1);
+    std::uniform_int_distribution<int> sps_dist(0, num_sps-1);
     
     // Total possible pairings
     const double total_pairs = 0.5*num_sps*(num_sps-1);
@@ -386,7 +386,7 @@ Superparticle Simulation::make_new_sp(const Superparticle& sp_i, const Superpart
     {
         new_ID = pop.sp_ID_count++;
     }
-    double new_n = std::min(sp_i.n, sp_j.n);
+    double new_n = std::min(sp_i.n, sp_j.n); // should be the same
     double new_vol = sp_i.vol + sp_j.vol;
     double new_dry_vol = sp_i.dry_vol + sp_j.dry_vol;
     double new_kappa = (sp_i.vol*sp_i.kappa + sp_j.vol*sp_j.kappa)/new_vol;
