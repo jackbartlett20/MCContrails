@@ -271,13 +271,7 @@ void Simulation::coagulation() {
         const Superparticle& sp_j = pop.sps.at(pair.j);
         double beta_ij = coag_coeff(sp_i, sp_j);
         double random_number = coag_dist(global_rng());
-        double P_ij = beta_ij * const_fac;
-        if (P_ij >= 1) {
-            #pragma omp critical
-            {
-                std::cerr << "Found coagulation probability P_ij = " << P_ij << ". Reduce dt for accuracy." << std::endl;
-            }
-        }
+        double P_ij = 1 - std::exp(-beta_ij * const_fac);
         if (random_number < P_ij) {
             // Coagulation occurs
             sps_coag_flag[pair.i].store(true);
