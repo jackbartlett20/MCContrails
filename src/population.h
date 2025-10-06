@@ -3,6 +3,8 @@
 
 #include <vector>
 
+class Params; // Forward declaration of class in params.h
+
 class Species {
 public:
     double n;
@@ -36,12 +38,11 @@ public:
     int sp_ID_count;
     std::vector<Superparticle> sps;
 
-    void assign(std::string input_path, int max_sps, int num_r_choices);
+    void assign(Params& params);
     void update_n_tot();
     void update_num_sps();
 
 private:
-    std::vector<Species> read_species(std::string input_path);
     std::vector<double> choose_vs(int sps_for_species, std::vector<double> logr_range, std::vector<double> weights);
 };
 

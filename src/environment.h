@@ -1,10 +1,12 @@
 #ifndef ENVIRONMENT
 #define ENVIRONMENT
 
+class Params; // Forward declaration of class in params.h
+
 class Environment {
 public:
 
-    void initialise(std::string input_path);
+    void initialise(Params& params);
 
     void set_env(const double current_time);
 
@@ -82,7 +84,7 @@ private:
 
     bool first_call = true;
     
-    void read_env(std::string input_path);
+    void init_vars(Params& params);
 
     double rho_w_liq(double T, double P);
 

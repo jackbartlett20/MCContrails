@@ -6,22 +6,23 @@
 #include <vector>
 #include <cmath>
 #include <atomic>
+#include <algorithm>
 #include <omp.h>
-#include <yaml-cpp/yaml.h>
 #include "simulation.h"
 #include "population.h"
 #include "environment.h"
 #include "general.h"
 #include "constants.h"
+#include "params.h"
 
 // Runs the simulation
-void Simulation::run(std::string input_path) {
-    read_simulation(input_path);
+void Simulation::run(Params& params) {
+    init_vars(params);
     set_rng(rng_seed_read);
     
     prepare_output();
-    env.initialise(input_path);
-    pop.assign(input_path, max_sps, num_r_choices); // Uses rng so must be after set_rng
+    env.initialise(params);
+    pop.assign(params); // Uses rng so must be after set_rng
 
     current_time = 0;
     if (num_writes > 0) {
@@ -62,79 +63,21 @@ void Simulation::run(std::string input_path) {
     }
 }
 
-// Reads input file with variables relevant to Simulation
-void Simulation::read_simulation(std::string input_path) {
-    YAML::Node input_file = YAML::LoadFile(input_path);
-    
-    int_time               = input_file["simulation"]["int_time"].as<double>();
-    dt                     = input_file["simulation"]["dt"].as<double>();
-    num_writes             = input_file["simulation"]["num_writes"].as<int>();
-    r_output_min           = input_file["simulation"]["r_output_min"].as<double>();
-    r_output_max           = input_file["simulation"]["r_output_max"].as<double>();
-    num_r_intervals_output = input_file["simulation"]["num_r_intervals_output"].as<int>();
-    max_sps                = input_file["simulation"]["max_sps"].as<int>();
-    num_r_choices          = input_file["simulation"]["num_r_choices"].as<int>();
-    min_S_l                = input_file["simulation"]["min_S_l"].as<double>();
-    do_coagulation         = input_file["simulation"]["do_coagulation"].as<int>();
-    num_dt_for_coag        = input_file["simulation"]["num_dt_for_coag"].as<int>();
-    rng_seed_read          = input_file["simulation"]["rng_seed"].as<unsigned long long>();
-
-    // Check valid
-    if (int_time <= 0) {
-        std::cerr << "Error: Read in integration time of " << int_time << "." << std::endl;
-        std::cerr << "Integration time must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (dt <= 0) {
-        std::cerr << "Error: Read in time step of " << dt << "." << std::endl;
-        std::cerr << "Time step must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (num_writes < 0) {
-        std::cerr << "Error: Read in " << num_writes << " writes." << std::endl;
-        std::cerr << "Number of writes must be >= 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (r_output_min <= 0) {
-        std::cerr << "Error: Read in smallest radius in output spectrum of " << r_output_min << "." << std::endl;
-        std::cerr << "Smallest radius in output spectrum must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (r_output_max <= r_output_min) {
-        std::cerr << "Error: Read in largest radius in output spectrum of " << r_output_max << "." << std::endl;
-        std::cerr << "Largest radius in output spectrum must be greater than smallest radius in output spectrum. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (num_r_intervals_output <= 0) {
-        std::cerr << "Error: Read in " << num_r_intervals_output << " intervals in output spectrum." << std::endl;
-        std::cerr << "Number of intervals in output spectrum must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (max_sps <= 0) {
-        std::cerr << "Error: Read in total number of superparticles of " << max_sps << "." << std::endl;
-        std::cerr << "Total number of superparticles must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (num_r_choices <= 0) {
-        std::cerr << "Error: Read in " << num_r_choices << " radii to choose from during initialisation." << std::endl;
-        std::cerr << "Number of radii to choose from must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (min_S_l < 0) {
-        std::cerr << "Error: Read in minimum saturation ratio of " << min_S_l << "." << std::endl;
-        std::cerr << "Minimum saturation ratio must be >= 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (do_coagulation != 0 && do_coagulation != 1) {
-        std::cerr << "Error: Read in \"do coagulation?\" of" << do_coagulation << "." << std::endl;
-        std::cerr << "Enter 1 for coagulation, 0 for no coagulation. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (num_dt_for_coag < 0) {
-        std::cerr << "Error: Read in number of time steps for coagulation of " << num_dt_for_coag << "." << std::endl;
-        std::cerr << "Number of time steps for coagulation must be >= 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
+// Copies variables in Params object to self
+void Simulation::init_vars(Params& params) {
+    int_time               = params.int_time;
+    dt                     = params.dt;
+    num_writes             = params.num_writes;
+    r_output_min           = params.r_output_min;
+    r_output_max           = params.r_output_max;
+    num_r_intervals_output = params.num_r_intervals_output;
+    max_sps                = params.max_sps;
+    num_r_choices          = params.num_r_choices;
+    min_S_l                = params.min_S_l;
+    do_coagulation         = params.do_coagulation;
+    num_dt_for_coag        = params.num_dt_for_coag;
+    rng_seed_read          = params.rng_seed_read;
+    outputDir              = params.outputDir;
 }
 
 // Updates volume of water in each droplet/crystal to reflect change in density
@@ -308,7 +251,7 @@ void Simulation::coagulation() {
 }
 
 // Chooses a random pair of indices for coagulation
-intPair Simulation::coag_rand_sps(std::uniform_int_distribution<>& sps_dist, std::vector<std::atomic<bool>>& sps_coag_flag) {
+intPair Simulation::coag_rand_sps(std::uniform_int_distribution<int>& sps_dist, std::vector<std::atomic<bool>>& sps_coag_flag) {
     intPair pair = {-1, -1};
     for (int n = 0; n < num_rand_attempts; n++) {
         int random_index = sps_dist(global_rng());
@@ -445,17 +388,17 @@ void Simulation::prepare_output() {
     dlogr_output = std::log(r_output.at(1)) - std::log(r_output.at(0));
 
     // Create output directory if needed
-    std::filesystem::path outputDir = "./output";
-    if (!std::filesystem::exists(outputDir)) {
-        if (std::filesystem::create_directories(outputDir)) {
+    std::filesystem::path outputDirPath = outputDir; // outputDir as a filesystem path object
+    if (!std::filesystem::exists(outputDirPath)) {
+        if (std::filesystem::create_directories(outputDirPath)) {
                 std::cout << "Created output directory." << std::endl;
         }
         else {
-            std::cerr << "Failed to create output directory at '" << outputDir.string() << "'. Stopping." << std::endl;
+            std::cerr << "Failed to create output directory at '" << outputDirPath.string() << "'. Stopping." << std::endl;
             exit(EXIT_FAILURE);
         }
     }
-    std::cout << "Output will be written to '" << outputDir.string() << "'." << std::endl;
+    std::cout << "Output will be written to '" << outputDirPath.string() << "'." << std::endl;
 }
 
 // Outputs PSDs and environmental variables to relevant files
@@ -494,10 +437,10 @@ void Simulation::output() {
 
     // Write PSDs
     if (first_write == true) {
-        file.open("output/psd.out");
+        file.open(outputDir+"/psd.out");
     }
     else {
-        file.open("output/psd.out", std::ios::app);
+        file.open(outputDir+"/psd.out", std::ios::app);
     }
     if (!file.is_open()) {
         std::cerr << "Error opening psd.out" << std::endl;
@@ -511,10 +454,10 @@ void Simulation::output() {
 
     // Write environment variables
     if (first_write == true) {
-        file.open("output/environment.out");
+        file.open(outputDir+"/environment.out");
     }
     else {
-        file.open("output/environment.out", std::ios::app);
+        file.open(outputDir+"/environment.out", std::ios::app);
     }
     if (!file.is_open()) {
         std::cerr << "Error opening environment.out" << std::endl;

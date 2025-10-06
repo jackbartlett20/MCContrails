@@ -6,17 +6,16 @@
 #include <string>
 #include <sstream>
 #include <random>
-#include <yaml-cpp/yaml.h>
 #include "population.h"
 #include "general.h"
 #include "constants.h"
+#include "params.h"
 
-void Population::assign(std::string input_path, int max_sps, int num_r_choices) {
-    this->max_sps = max_sps;
-    this->num_r_choices = num_r_choices;
+void Population::assign(Params& params) {
+    max_sps = params.max_sps;
+    num_r_choices = params.num_r_choices;
 
-    // Read species
-    std::vector<Species> species_vec = read_species(input_path);
+    std::vector<Species> species_vec = params.species_vec;
     int num_species = species_vec.size();
     std::cout << "Number of species read: " << num_species << std::endl;
 
@@ -50,47 +49,6 @@ void Population::assign(std::string input_path, int max_sps, int num_r_choices) 
     }
     // Determine num_sps
     update_num_sps();
-}
-
-// Reads each species from input file
-std::vector<Species> Population::read_species(std::string input_path) {
-    std::vector<Species> species_vec;
-
-    YAML::Node input_file = YAML::LoadFile(input_path);
-
-    // Iterate over species
-    for (const auto& speciesNode : input_file["species"]) {
-        double n     = speciesNode["n"].as<double>();
-        double GMR   = speciesNode["GMR"].as<double>();
-        double GSD   = speciesNode["GSD"].as<double>();
-        double f_dry = speciesNode["f_dry"].as<double>();
-        double kappa = speciesNode["kappa"].as<double>();
-
-        // Check valid
-        if (n < 0) {
-            std::cerr << "Error: Read in number density of " << n << "." << std::endl;
-            std::cerr << "Number density should be > 0. Stopping." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        if (GMR <= 0) {
-            std::cerr << "Error: Read in geometric mean radius of " << GMR << "." << std::endl;
-            std::cerr << "Geometric mean radius must be > 0. Stopping." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        if (f_dry < 0 || f_dry > 1) {
-            std::cerr << "Error: Read in dry fraction of " << f_dry << "." << std::endl;
-            std::cerr << "Dry fraction must be between 0 and 1. Stopping." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        if (kappa < 0) {
-            std::cerr << "Error: Read in hygroscopicity of " << kappa << "." << std::endl;
-            std::cerr << "Hygroscopicity must be >= 0. Stopping." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        species_vec.push_back(Species(n, GMR, GSD, f_dry, kappa));
-    }
-    return species_vec;
 }
 
 // Randomly chooses a set of volumes for superparticles according to weights

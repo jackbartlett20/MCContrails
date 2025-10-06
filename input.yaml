@@ -3,7 +3,7 @@
 # Simulation
 simulation:
   # Integration time (s)
-  int_time: 1e0
+  int_time: 5e0
   # Time step (s)
   dt: 1e-6
   # Number of outputs, equally spaced during integration time
@@ -15,7 +15,7 @@ simulation:
   # Number of radius intervals in output spectrum
   num_r_intervals_output: 200
   # Total number of superparticles
-  max_sps: 200100
+  max_sps: 201000
   # Number of radii to be randomly chosen from in initialisation
   num_r_choices: 1000
   # Minimum saturation ratio of liquid water to do growth
@@ -26,17 +26,19 @@ simulation:
   num_dt_for_coag: 200
   # Seed for random number generator (use 0 for random seed)
   rng_seed: 0
+  # Output directory (relative to current working directory)
+  MCC_output_dir: "./output"
 
 # Environment
 environment:
   # Exhaust temperature (K)
   T_exhaust: 600
   # Ambient temperature (K)
-  T_ambient: 220
+  T_ambient: 210
   # Exhaust vapour pressure (Pa)
-  Pvap_exhaust: 670
+  Pvap_exhaust: 691
   # Ambient vapour pressure (Pa)
-  Pvap_ambient: 3.983
+  Pvap_ambient: 1.708
   # Ambient air pressure (Pa)
   P_ambient: 2.5e4
   # Radius of aircraft exhaust (m)
@@ -56,7 +58,7 @@ species:
 # f_dry: Fraction of particle volume that is not water
 # kappa: Hygroscopicity parameter; 1 for very hygroscopic, 0 for unhygroscopic
   # nvPM
-  - n:     1e11
+  - n:     2e13
     GMR:   17.5e-9
     GSD:   2.0
     f_dry: 1

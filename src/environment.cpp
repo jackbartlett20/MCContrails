@@ -3,14 +3,14 @@
 #include <cstdlib>
 #include <limits>
 #include <cmath>
-#include <yaml-cpp/yaml.h>
 #include <calculisto/iapws/r6_inverse.hpp>
 #include <calculisto/iapws/r10.hpp>
 #include "environment.h"
 #include "constants.h"
+#include "params.h"
 
-void Environment::initialise(std::string input_path) {
-    read_env(input_path);
+void Environment::initialise(Params& params) {
+    init_vars(params);
     T = T_exhaust;
     Pvap = Pvap_exhaust;
     double x_m = r_0 * std::sqrt(2/eps_diffusivity);
@@ -18,60 +18,16 @@ void Environment::initialise(std::string input_path) {
     set_env(0);
 }
 
-// Reads input file with variables relevant to Environment
-void Environment::read_env(std::string input_path) {
-    YAML::Node input_file = YAML::LoadFile(input_path);
-    
-    T_exhaust       = input_file["environment"]["T_exhaust"].as<double>();
-    T_ambient       = input_file["environment"]["T_ambient"].as<double>();
-    Pvap_exhaust    = input_file["environment"]["Pvap_exhaust"].as<double>();
-    Pvap_ambient    = input_file["environment"]["Pvap_ambient"].as<double>();
-    P_ambient       = input_file["environment"]["P_ambient"].as<double>();
-    r_0             = input_file["environment"]["r_0"].as<double>();
-    u_0             = input_file["environment"]["u_0"].as<double>();
-    eps_diffusivity = input_file["environment"]["eps_diffusivity"].as<double>();
-
-    // Check valid
-    if (T_exhaust <= 0) {
-        std::cerr << "Error: Read in exhaust temperature of " << T_exhaust << "." << std::endl;
-        std::cerr << "Exhaust temperature must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (T_ambient <= 0) {
-        std::cerr << "Error: Read in ambient temperature of " << T_ambient << "." << std::endl;
-        std::cerr << "Ambient temperature must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (Pvap_exhaust < 0) {
-        std::cerr << "Error: Read in exhaust vapour pressure of " << Pvap_exhaust << "." << std::endl;
-        std::cerr << "Exhaust vapour pressure must be >= 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (Pvap_ambient < 0) {
-        std::cerr << "Error: Read in ambient vapour pressure of " << Pvap_ambient << "." << std::endl;
-        std::cerr << "Ambient vapour pressure must be >= 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (P_ambient <= 0) {
-        std::cerr << "Error: Read in ambient pressure of " << P_ambient << "." << std::endl;
-        std::cerr << "Ambient pressure must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (r_0 <= 0) {
-        std::cerr << "Error: Read in radius of jet exhaust of " << r_0 << "." << std::endl;
-        std::cerr << "Radius of jet exhaust must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (u_0 <= 0) {
-        std::cerr << "Error: Read in aircraft speed of " << u_0 << "." << std::endl;
-        std::cerr << "Aircraft speed must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    if (eps_diffusivity <= 0) {
-        std::cerr << "Error: Read in turbulent diffusivity of " << eps_diffusivity << "." << std::endl;
-        std::cerr << "Turbulent diffusivity must be > 0. Stopping." << std::endl;
-        exit(EXIT_FAILURE);
-    }
+// Copies relevant variables from Params object to self
+void Environment::init_vars(Params& params) {
+    T_exhaust       = params.T_exhaust;
+    T_ambient       = params.T_ambient;
+    Pvap_exhaust    = params.Pvap_exhaust;
+    Pvap_ambient    = params.Pvap_ambient;
+    P_ambient       = params.P_ambient;
+    r_0             = params.r_0;
+    u_0             = params.u_0;
+    eps_diffusivity = params.eps_diffusivity;
 }
 
 // Sets environmental variables according to current time

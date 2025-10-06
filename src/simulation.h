@@ -3,8 +3,11 @@
 
 #include <vector>
 #include <atomic>
-#include "environment.h"
+#include <random>
 #include "population.h"
+#include "environment.h"
+
+class Params; // Forward declaration of class in params.h
 
 // A pair of integers used in coagulation
 struct intPair {
@@ -14,7 +17,7 @@ struct intPair {
 
 class Simulation {
 public:
-    void run(std::string input_path);
+    void run(Params& params);
 
 private:
     double int_time;
@@ -29,6 +32,7 @@ private:
     int do_coagulation;
     int num_dt_for_coag;
     unsigned long long rng_seed_read;
+    std::string outputDir;
     double write_interval;
     double next_write_time;
     double coag_interval;
@@ -47,7 +51,7 @@ private:
     // Number of attempts to find uncoagulated superparticles
     const int num_rand_attempts = 10;
 
-    void read_simulation(std::string input_path);
+    void init_vars(Params& params);
 
     void update_water_vol();
 
@@ -61,7 +65,7 @@ private:
 
     void coagulation();
 
-    intPair coag_rand_sps(std::uniform_int_distribution<>& sps_dist, std::vector<std::atomic<bool>>& sps_coag_flag);
+    intPair coag_rand_sps(std::uniform_int_distribution<int>& sps_dist, std::vector<std::atomic<bool>>& sps_coag_flag);
 
     double coag_coeff(const Superparticle& sp_i, const Superparticle& sp_j);
 

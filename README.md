@@ -16,7 +16,7 @@ MCContrails uses OpenMP for parallelisation of functions including growth and co
 ## Compiling
 
 The program is compiled from the top directory (`MCContrails`) with the following instructions:
-```
+```bash
 cmake -S . -B build
 cmake --build build
 ```
@@ -27,13 +27,23 @@ The following options can be added to the first `cmake` command if required:
 - `-DCMAKE_BUILD_TYPE=Debug`
 
 
+## Inputs
+
+Simulation settings, initial particle properties, and environmental conditions should be input by editing the file `input.yaml`.
+
+The program is also able to read variables from the Linux environment. If the program recognises a variable name from `input.yaml` in the environment, it will overwrite the `input.yaml` variable with the value from the environment. For example, in Bash:
+
+```bash
+export T_ambient=210
+```
+
+Species attributes can be overwritten by appending the corresponding number on the end, e.g. `n1` will overwrite the number density of the first species in `input.yaml`.
+
 ## Executing
 
-Simulation settings, initial particle properties, and environmental conditions should be input by editing file `input.yaml`.
+The program is executed with `./MCContrails` from the `build` directory. This reads in the input file at `../input.yaml` relative to the current working directory by default. The program will accept an alternative input file by running `./MCContrails /path/to/input.yaml`.
 
-The program is executed with `./MCContrails` from the `build` directory. This reads in the input file at `../input.yaml` by default. The program will accept an alternative input file by running `./MCContrails /path/to/input.yaml`.
-
-Outputs are written to `/build/output/`. The columns of the particle size distribution (`psd.out`) are:
+Outputs are written to `/build/output/` by default. The columns of the particle size distribution (`psd.out`) are:
 1. Time (s)
 2. Particle radius at centre of interval (m)
 3. Droplet number density $n$ (m-3)
