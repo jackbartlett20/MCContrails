@@ -81,7 +81,7 @@ void Params::read_env() {
     for (std::vector<Species>::size_type i = 0; i < species_vec.size(); i++) {
         Species& species = species_vec.at(i);
         int version = i+1;
-        species.EI     = check_and_overwrite<double>(species.EI, "n", version);
+        species.EI     = check_and_overwrite<double>(species.EI, "EI", version);
         species.GMR   = check_and_overwrite<double>(species.GMR, "GMR", version);
         species.GSD   = check_and_overwrite<double>(species.GSD, "GSD", version);
         species.f_dry = check_and_overwrite<double>(species.f_dry, "f_dry", version);
