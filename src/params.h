@@ -24,12 +24,14 @@ public:
 
     double T_exhaust;
     double T_ambient;
-    double Pvap_exhaust;
+    double EI_vap;
     double Pvap_ambient;
     double P_ambient;
     double r_0;
     double u_0;
     double eps_diffusivity;
+    double Q;
+    double eta;
 
     std::vector<Species> species_vec;
 

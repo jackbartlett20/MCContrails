@@ -28,21 +28,23 @@ void Params::read_yaml(std::string input_path) {
     // Environment
     T_exhaust       = input_file["environment"]["T_exhaust"].as<double>();
     T_ambient       = input_file["environment"]["T_ambient"].as<double>();
-    Pvap_exhaust    = input_file["environment"]["Pvap_exhaust"].as<double>();
+    EI_vap          = input_file["environment"]["EI_vap"].as<double>();
     Pvap_ambient    = input_file["environment"]["Pvap_ambient"].as<double>();
     P_ambient       = input_file["environment"]["P_ambient"].as<double>();
     r_0             = input_file["environment"]["r_0"].as<double>();
     u_0             = input_file["environment"]["u_0"].as<double>();
     eps_diffusivity = input_file["environment"]["eps_diffusivity"].as<double>();
+    Q               = input_file["environment"]["Q"].as<double>();
+    eta             = input_file["environment"]["eta"].as<double>();
 
     // Iterate over species
-    for (const auto& speciesNode : input_file["species"]) {
-        double n     = speciesNode["n"].as<double>();
+    for (const auto& speciesNode : input_file["exhaust species"]) {
+        double EI    = speciesNode["EI"].as<double>();
         double GMR   = speciesNode["GMR"].as<double>();
         double GSD   = speciesNode["GSD"].as<double>();
         double f_dry = speciesNode["f_dry"].as<double>();
         double kappa = speciesNode["kappa"].as<double>();
-        species_vec.push_back(Species(n, GMR, GSD, f_dry, kappa));
+        species_vec.push_back(Species(EI, GMR, GSD, f_dry, kappa));
     }
 }
 
@@ -66,18 +68,20 @@ void Params::read_env() {
     // Environment
     T_exhaust       = check_and_overwrite<double>(T_exhaust, "T_exhaust");
     T_ambient       = check_and_overwrite<double>(T_ambient, "T_ambient");
-    Pvap_exhaust    = check_and_overwrite<double>(Pvap_exhaust, "Pvap_exhaust");
+    EI_vap          = check_and_overwrite<double>(EI_vap, "EI_vap");
     Pvap_ambient    = check_and_overwrite<double>(Pvap_ambient, "Pvap_ambient");
     P_ambient       = check_and_overwrite<double>(P_ambient, "P_ambient");
     r_0             = check_and_overwrite<double>(r_0, "r_0");
     u_0             = check_and_overwrite<double>(u_0, "u_0");
     eps_diffusivity = check_and_overwrite<double>(eps_diffusivity, "eps_diffusivity");
+    Q               = check_and_overwrite<double>(Q, "Q");
+    eta             = check_and_overwrite<double>(eta, "eta");
 
     // Iterate over species, uses index i to determine which version to look for
     for (std::vector<Species>::size_type i = 0; i < species_vec.size(); i++) {
         Species& species = species_vec.at(i);
         int version = i+1;
-        species.n     = check_and_overwrite<double>(species.n, "n", version);
+        species.EI     = check_and_overwrite<double>(species.EI, "n", version);
         species.GMR   = check_and_overwrite<double>(species.GMR, "GMR", version);
         species.GSD   = check_and_overwrite<double>(species.GSD, "GSD", version);
         species.f_dry = check_and_overwrite<double>(species.f_dry, "f_dry", version);
@@ -190,9 +194,9 @@ void Params::check_valid() {
         std::cerr << "Ambient temperature must be > 0. Stopping." << std::endl;
         exit(EXIT_FAILURE);
     }
-    if (Pvap_exhaust < 0) {
-        std::cerr << "Error: Read in exhaust vapour pressure of " << Pvap_exhaust << "." << std::endl;
-        std::cerr << "Exhaust vapour pressure must be >= 0. Stopping." << std::endl;
+    if (EI_vap < 0) {
+        std::cerr << "Error: Read in water vapour emissions index of " << EI_vap << "." << std::endl;
+        std::cerr << "Water vapour emissions index must be >= 0. Stopping." << std::endl;
         exit(EXIT_FAILURE);
     }
     if (Pvap_ambient < 0) {
@@ -220,12 +224,22 @@ void Params::check_valid() {
         std::cerr << "Turbulent diffusivity must be > 0. Stopping." << std::endl;
         exit(EXIT_FAILURE);
     }
+    if (Q <= 0) {
+        std::cerr << "Error: Read in specific combustion heat of " << Q << "." << std::endl;
+        std::cerr << "Specific combustion heat must be > 0. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (eta <= 0 || eta > 1) {
+        std::cerr << "Error: Read in propulsion efficiency of " << eta << "." << std::endl;
+        std::cerr << "Propulsion efficiency must be between 0 and 1. Stopping." << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
     // Species
     for (Species& species : species_vec) {
-        if (species.n < 0) {
-            std::cerr << "Error: Read in number density of " << species.n << "." << std::endl;
-            std::cerr << "Number density should be > 0. Stopping." << std::endl;
+        if (species.EI < 0) {
+            std::cerr << "Error: Read in emissions index of " << species.EI << "." << std::endl;
+            std::cerr << "Emissions index should be > 0. Stopping." << std::endl;
             exit(EXIT_FAILURE);
         }
         if (species.GMR <= 0) {

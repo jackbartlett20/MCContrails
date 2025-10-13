@@ -23,9 +23,12 @@ public:
     double get_Pvap_ambient() {return Pvap_ambient;}
     double get_P_ambient() {return P_ambient;}
     double get_r_0() {return r_0;}
-    double get_eps_diffusivity() {return eps_diffusivity;}
     double get_u_0() {return u_0;}
+    double get_eps_diffusivity() {return eps_diffusivity;}
+    double get_Q() {return Q;}
+    double get_eta() {return eta;}
     double get_tau_m() {return tau_m;}
+    double get_N() {return N;}
     double get_Psat_l() {return Psat_l;}
     double get_Psat_i() {return Psat_i;}
     double get_S_l() {return S_l;}
@@ -57,13 +60,17 @@ private:
     double Pvap;
     double T_exhaust;
     double T_ambient;
+    double EI_vap;
     double Pvap_exhaust;
     double Pvap_ambient;
     double P_ambient;
     double r_0;
-    double eps_diffusivity;
     double u_0;
+    double eps_diffusivity;
+    double Q;
+    double eta;
     double tau_m;
+    double N;
     double Psat_l;
     double Psat_i;
     double S_l;
@@ -95,6 +102,8 @@ private:
     double rho_w_liq(double T, double P);
 
     double rho_w_ice(double T, double P);
+
+    void calc_Pvap_exhaust();
 };
 
 #endif

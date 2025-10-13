@@ -22,7 +22,8 @@ void Simulation::run(Params& params) {
     
     prepare_output();
     env.initialise(params);
-    pop.assign(params); // Uses rng so must be after set_rng
+    const double initial_n_to_EI_ratio = env.get_air_density() / env.get_N();
+    pop.assign(params, initial_n_to_EI_ratio); // Uses rng so must be after set_rng
 
     current_time = 0;
     if (num_writes > 0) {
@@ -456,7 +457,7 @@ void Simulation::output() {
     }
     for (int i = 0; i < num_r_intervals_output; i++) {
         file << current_time << ", " << r_m_output.at(i) << ", " << n_droplet_output.at(i) << ", " << dndlogr_droplet_output.at(i) << ", "
-        << n_crystal_output.at(i) << ", " << dndlogr_crystal_output.at(i) << "\n";
+             << n_crystal_output.at(i) << ", " << dndlogr_crystal_output.at(i) << "\n";
     }
     file.close();
 
@@ -471,7 +472,8 @@ void Simulation::output() {
         std::cerr << "Error opening environment.out" << std::endl;
         exit(EXIT_FAILURE);
     }
-    file << current_time << ", " << env.get_T() << ", " << env.get_Pvap() << ", " << env.get_Psat_l() << ", " << env.get_Psat_i() << "\n";
+    file << current_time << ", " << env.get_T() << ", " << env.get_Pvap() << ", " << env.get_Psat_l() << ", " << env.get_Psat_i() << ", "
+         << env.get_dilution_factor() << ", " << env.get_air_density() << ", " << env.get_N() << "\n";
     file.close();
 
     first_write = false;

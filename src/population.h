@@ -7,13 +7,13 @@ class Params; // Forward declaration of class in params.h
 
 class Species {
 public:
-    double n;
+    double EI;
     double GMR;
     double GSD;
     double f_dry;
     double kappa;
 
-    Species(double n, double r_mean, double SD, double f_dry, double kappa);
+    Species(double EI, double r_mean, double SD, double f_dry, double kappa);
 };
 
 class Superparticle {
@@ -38,7 +38,7 @@ public:
     int sp_ID_count;
     std::vector<Superparticle> sps;
 
-    void assign(Params& params);
+    void assign(Params& params, const double initial_n_to_EI_ratio);
     void update_n_tot();
     void update_num_sps();
 

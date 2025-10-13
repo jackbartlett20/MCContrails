@@ -3,11 +3,11 @@
 # Simulation
 simulation:
   # Integration time (s)
-  int_time: 5e0
+  int_time: 1e0
   # Time step (s)
   dt: 1e-6
   # Number of outputs, equally spaced during integration time
-  num_writes: 1000
+  num_writes: 200
   # Smallest radius in output spectrum (m)
   r_output_min: 1e-9
   # Largest radius in output spectrum (m)
@@ -15,7 +15,7 @@ simulation:
   # Number of radius intervals in output spectrum
   num_r_intervals_output: 200
   # Total number of superparticles
-  max_sps: 220000
+  max_sps: 200000
   # Number of radii to be randomly chosen from in initialisation
   num_r_choices: 1000
   # Minimum saturation ratio of liquid water to do growth
@@ -35,8 +35,8 @@ environment:
   T_exhaust: 600
   # Ambient temperature (K)
   T_ambient: 223
-  # Exhaust vapour pressure (Pa)
-  Pvap_exhaust: 691
+  # Emissions index of water vapour (kg per kg fuel)
+  EI_vap: 1.25
   # Ambient vapour pressure (Pa)
   Pvap_ambient: 1.933
   # Ambient air pressure (Pa)
@@ -47,24 +47,28 @@ environment:
   u_0: 400
   # Turbulent diffusivity ()
   eps_diffusivity: 2.85e-2
+  # Specific combustion heat of fuel J kg-1
+  Q: 43.15e6
+  # Propulsion efficiency ()
+  eta: 0.308
 
-# Species
-species:
+# Exhaust species
+exhaust species:
 # Each species must be written as an item in the list
 # Each species must have the following properties:
-# n: Total number density of species (m-3)
-# GMR: geometric mean radius (m)
+# EI: Emissions index (# per kg fuel)
+# GMR: Geometric mean radius (m)
 # GSD: Geometric standard deviation of particle radius (no units)
 # f_dry: Fraction of particle volume that is not water
 # kappa: Hygroscopicity parameter; 1 for very hygroscopic, 0 for unhygroscopic
   # nvPM
-  - n:     2e13
+  - EI:    1e16
     GMR:   17.5e-9
     GSD:   2.0
     f_dry: 1
     kappa: 0.005
   # vPM
-  - n:     2e14
+  - EI:    1e17
     GMR:   2e-9
     GSD:   1.3
     f_dry: 1

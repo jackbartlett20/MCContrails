@@ -11,10 +11,14 @@
 
 void Environment::initialise(Params& params) {
     init_vars(params);
-    T = T_exhaust;
-    Pvap = Pvap_exhaust;
+    // Plume mixing timescale
     double x_m = r_0 * std::sqrt(2/eps_diffusivity);
     tau_m = x_m / u_0;
+    // Fuel-air mass mixing ratio (approx since CP_AIR is not const)
+    N = Q * (1-eta) / (CP_AIR * (T_exhaust - T_ambient));
+    calc_Pvap_exhaust();
+    T = T_exhaust;
+    Pvap = Pvap_exhaust;
     set_env(0);
 }
 
@@ -22,12 +26,14 @@ void Environment::initialise(Params& params) {
 void Environment::init_vars(Params& params) {
     T_exhaust       = params.T_exhaust;
     T_ambient       = params.T_ambient;
-    Pvap_exhaust    = params.Pvap_exhaust;
+    EI_vap          = params.EI_vap;
     Pvap_ambient    = params.Pvap_ambient;
     P_ambient       = params.P_ambient;
     r_0             = params.r_0;
     u_0             = params.u_0;
     eps_diffusivity = params.eps_diffusivity;
+    Q               = params.Q;
+    eta             = params.eta;
 }
 
 // Sets environmental variables according to current time
@@ -48,7 +54,7 @@ void Environment::set_env(const double current_time) {
     Pvap += mixing_grad * (T_new - T);
     T = T_new;
 
-    // Buck equations
+    // Buck equations (Pa)
     Psat_l = 6.1121e2*std::exp((18.678 - (T-273.15)/234.5) * ((T-273.15)/(T-16.01)));
     Psat_i = 6.1115e2*std::exp((23.036 - (T-273.15)/333.7) * ((T-273.15)/(T+6.67)));
 
@@ -134,4 +140,13 @@ double Environment::rho_w_ice(double T, double P) {
 // Updates vapour pressure in Environment after growth
 void Environment::update_Pvap_after_growth(double delta_Pvap) {
     Pvap += delta_Pvap;
+}
+
+// Convert vapour EI to pressure
+void Environment::calc_Pvap_exhaust() {
+    // Using notation of Schumann (1996)
+    const double eps = WATER_MOLAR_MASS / AIR_MOLAR_MASS;
+    double m_ambient = eps*Pvap_ambient/P_ambient;
+    double m_p = (EI_vap + (N-1)*m_ambient)/N;
+    Pvap_exhaust = P_ambient*m_p/eps;
 }

@@ -11,7 +11,7 @@
 #include "constants.h"
 #include "params.h"
 
-void Population::assign(Params& params) {
+void Population::assign(Params& params, const double initial_n_to_EI_ratio) {
     max_sps = params.max_sps;
     num_r_choices = params.num_r_choices;
 
@@ -19,10 +19,10 @@ void Population::assign(Params& params) {
     int num_species = species_vec.size();
     std::cout << "Number of species read: " << num_species << std::endl;
 
-    // Calculate total particle density
+    // Calculate total initial particle density
     n_tot = 0;
     for (const Species& species : species_vec) {
-        n_tot += species.n;
+        n_tot += species.EI * initial_n_to_EI_ratio;
     }
     double n_per_sp = n_tot/max_sps;
 
@@ -30,7 +30,7 @@ void Population::assign(Params& params) {
     sp_ID_count = 0;
     int species_ID = 0;
     for (const Species& species : species_vec) {
-        int num_sps_for_species = std::round(species.n/n_per_sp);
+        int num_sps_for_species = std::round(species.EI*initial_n_to_EI_ratio/n_per_sp);
         species_ID++;
         std::cout << "Number of superparticles created from species " << species_ID << ": " << num_sps_for_species << std::endl;
         if (num_sps_for_species == 0) {
@@ -77,8 +77,8 @@ void Population::update_num_sps() {
     num_sps = sps.size();
 }
 
-Species::Species(double n, double GMR, double GSD, double f_dry, double kappa) {
-    this->n = n;
+Species::Species(double EI, double GMR, double GSD, double f_dry, double kappa) {
+    this->EI = EI;
     this->GMR = GMR;
     this->GSD = GSD;
     this->f_dry = f_dry;
