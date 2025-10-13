@@ -98,18 +98,13 @@ void Simulation::growth() {
     // Parallelise for loop
     #pragma omp parallel for reduction(+:sum_gn_droplet, sum_gn_crystal)
     for (Superparticle& sp : pop.sps) {
-        double growth_rate;
-        if (sp.isFrozen) {
-            growth_rate = growth_rate_crystal(sp.vol);
-            sum_gn_crystal += growth_rate * sp.n;
-        }
-        else {
-            growth_rate = growth_rate_liquid(sp.vol, sp.dry_vol, sp.kappa);
-            sum_gn_droplet += growth_rate * sp.n;
-        }
-        sp.vol += growth_rate * dt;
-        // Check volume
-        sp.vol = check_valid_vol(sp.vol, sp.dry_vol);
+        // Calculate growth rate
+        double growth_rate = sp.isFrozen ? growth_rate_crystal(sp.vol) : growth_rate_liquid(sp.vol, sp.dry_vol, sp.kappa);
+        // Check growth rate is valid
+        growth_rate = check_valid_growth_rate(growth_rate, sp.vol, sp.dry_vol, dt);
+        sp.vol = std::max(sp.dry_vol, sp.vol+growth_rate*dt); // To avoid rounding errors
+        // Add to relevant sum
+        sp.isFrozen ? (sum_gn_crystal += growth_rate * sp.n) : (sum_gn_droplet += growth_rate * sp.n);
     }
 
     // Update vapour pressure
@@ -167,13 +162,13 @@ double Simulation::growth_rate_crystal(const double v) {
     return growth_rate;
 }
 
-// Raises error is volume is negative
-double Simulation::check_valid_vol(double vol, const double dry_vol) {
-    if (vol < dry_vol) {
-        //std::cerr << "Found volume = " << vol/dry_vol << " * dry volume after growth." << std::endl;
-        vol = dry_vol;
+// Checks if growth rate would make vol < dry_vol and corrects
+double Simulation::check_valid_growth_rate(double growth_rate, const double vol, const double dry_vol, const double dt) {
+    if (vol+growth_rate*dt < dry_vol) {
+        //std::cerr << "Found volume = " << vol/dry_vol << " * dry volume after growth at t = "<< current_time <<"." << std::endl;
+        growth_rate = (dry_vol-vol)/dt; // Give up maximum amount of water
     }
-    return vol;
+    return growth_rate;
 }
 
 // Coagulates the superparticles

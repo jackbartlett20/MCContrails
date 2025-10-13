@@ -61,7 +61,7 @@ private:
 
     double growth_rate_crystal(const double v);
 
-    double check_valid_vol(double vol, const double dry_vol);
+    double check_valid_growth_rate(double growth_rate, const double vol, const double dry_vol, const double dt);
 
     void coagulation();
 
