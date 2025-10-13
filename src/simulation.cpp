@@ -44,6 +44,7 @@ void Simulation::run(Params& params) {
         //std::cout << "Current time: " << current_time << std::endl;
         env.set_env(current_time);
         update_water_vol();
+        conc_dilution();
         if (env.get_S_l() >= min_S_l) {
             growth();
         }
@@ -89,6 +90,18 @@ void Simulation::update_water_vol() {
         double dens_ratio = sp.isFrozen ? ice_dens_ratio : water_dens_ratio;
         sp.vol = sp.dry_vol + dens_ratio * (sp.vol - sp.dry_vol);
     }
+}
+
+// Reduces superparticle number concentration according to plume dilution
+void Simulation::conc_dilution() {
+    // n_new = n_old * dilution_ratio
+    double dilution_ratio = (env.get_dilution_factor() * env.get_air_density()) /
+                          (env.get_dilution_factor_old() * env.get_air_density_old());
+    #pragma omp parallel for
+    for (Superparticle& sp : pop.sps) {
+        sp.n *= dilution_ratio;
+    }
+    pop.update_n_tot();
 }
 
 // Grows the superparticles
@@ -165,8 +178,8 @@ double Simulation::growth_rate_crystal(const double v) {
 // Checks if growth rate would make vol < dry_vol and corrects
 double Simulation::check_valid_growth_rate(double growth_rate, const double vol, const double dry_vol, const double dt) {
     if (vol+growth_rate*dt < dry_vol) {
-        //std::cerr << "Found volume = " << vol/dry_vol << " * dry volume after growth at t = "<< current_time <<"." << std::endl;
-        growth_rate = (dry_vol-vol)/dt; // Give up maximum amount of water
+        // Give up maximum amount of water
+        growth_rate = (dry_vol-vol)/dt;
     }
     return growth_rate;
 }

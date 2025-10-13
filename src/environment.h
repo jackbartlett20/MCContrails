@@ -13,6 +13,8 @@ public:
     void update_Pvap_after_growth(double delta_Pvap);
 
     // getters
+    double get_dilution_factor() {return dilution_factor;}
+    double get_dilution_factor_old() {return dilution_factor_old;}
     double get_T() {return T;}
     double get_Pvap() {return Pvap;}
     double get_T_exhaust() {return T_exhaust;}
@@ -29,6 +31,7 @@ public:
     double get_S_l() {return S_l;}
     double get_S_i() {return S_i;}
     double get_air_density() {return air_density;}
+    double get_air_density_old() {return air_density_old;}
     double get_air_viscosity() {return air_viscosity;}
     double get_mfp_air() {return mfp_air;}
     double get_water_density() {return water_density;}
@@ -48,6 +51,8 @@ public:
     double get_n_sat() {return n_sat;}
 
 private:
+    double dilution_factor;
+    double dilution_factor_old;
     double T;
     double Pvap;
     double T_exhaust;
@@ -64,6 +69,7 @@ private:
     double S_l;
     double S_i;
     double air_density;
+    double air_density_old;
     double air_viscosity;
     double mfp_air;
     double water_density;

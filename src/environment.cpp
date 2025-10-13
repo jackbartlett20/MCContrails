@@ -32,14 +32,14 @@ void Environment::init_vars(Params& params) {
 
 // Sets environmental variables according to current time
 void Environment::set_env(const double current_time) {
-    // Adiabatic plume mixing
-    double dilution_factor;
-    if (current_time <= tau_m) {
-        dilution_factor = 1;
+    // Adiabatic plume mixing from Kärcher et al. (2015)
+    if (first_call) {
+        dilution_factor_old = (current_time <= tau_m) ? 1 : std::pow(tau_m/current_time, 0.9);
     }
     else {
-        dilution_factor = std::pow(tau_m/current_time, 0.9);
+        dilution_factor_old = dilution_factor;
     }
+    dilution_factor = (current_time <= tau_m) ? 1 : std::pow(tau_m/current_time, 0.9);
 
     double mixing_grad = (Pvap - Pvap_ambient)/(T - T_ambient);
     double T_new = T_ambient + (T_exhaust - T_ambient) * dilution_factor;
@@ -57,6 +57,12 @@ void Environment::set_env(const double current_time) {
     S_i = Pvap/Psat_i;
 
     // Density of air (kg m-3)
+    if (first_call) {
+        air_density_old = P_ambient * AIR_MOLAR_MASS / (IDEAL_GAS_CONSTANT * T);
+    }
+    else {
+        air_density_old = air_density;
+    }
     air_density = P_ambient * AIR_MOLAR_MASS / (IDEAL_GAS_CONSTANT * T);
 
     // Viscosity of air (N s m-2) - Sutherland equation
@@ -74,7 +80,6 @@ void Environment::set_env(const double current_time) {
         water_density_old = water_density;
         ice_density_old = ice_density;
     }
-    first_call = false;
     water_density = rho_w_liq(T, P_ambient);
     ice_density = rho_w_ice(T, P_ambient);
 
@@ -110,6 +115,8 @@ void Environment::set_env(const double current_time) {
 
     // H2O number concentration (m-3) - for crystal growth; ideally not needed here
     n_sat = AVOGADRO_CONSTANT * Pvap / (IDEAL_GAS_CONSTANT * T);
+
+    first_call = false;
 }
 
 // Calculates density of liquid water (kg m-3) using IAPWS R6-95(2018)

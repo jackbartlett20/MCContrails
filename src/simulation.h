@@ -55,6 +55,8 @@ private:
 
     void update_water_vol();
 
+    void conc_dilution();
+
     void growth();
 
     double growth_rate_liquid(const double v, const double v_dry, const double kappa);
